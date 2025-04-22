@@ -17,7 +17,7 @@ logging.basicConfig(
 logger = logging.getLogger("OperatorClient")
 
 class OperatorClient:
-    def __init__(self, server_url: str = "ws://localhost:8765"):
+    def __init__(self, server_url: str = "ws://192.168.55.2:8765"):
         self.server_url = server_url
         self.websocket = None
         self.callbacks = {}

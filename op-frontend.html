@@ -1,0 +1,791 @@
+ <!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Op Server Frontend</title>
+    <style>
+        :root {
+            --primary-color: #007bff; /* Changed theme color slightly */
+            --secondary-color: #6c757d;
+            --success-color: #28a745;
+            --danger-color: #dc3545;
+            --warning-color: #ffc107;
+            --info-color: #17a2b8;
+            --light-gray: #f8f9fa;
+            --dark-gray: #343a40;
+            --border-radius: 4px;
+        }
+        
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        body {
+            background-color: var(--light-gray);
+            color: var(--dark-gray);
+            line-height: 1.6;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        header {
+            background-color: var(--secondary-color);
+            color: white;
+            padding: 15px 0; /* Reduced padding */
+            margin-bottom: 30px;
+        }
+        
+        header h1 {
+            text-align: center;
+            font-size: 1.8em; /* Adjusted size */
+        }
+        
+        header .status-indicator {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin-top: 8px;
+            font-size: 14px;
+        }
+        
+        .status-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+        
+        .status-connected {
+            background-color: var(--success-color);
+        }
+        
+        .status-disconnected {
+            background-color: var(--danger-color);
+        }
+        
+        .main-content {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+        }
+        
+        @media (max-width: 768px) {
+            .main-content {
+                grid-template-columns: 1fr;
+            }
+        }
+        
+        .card {
+            background-color: white;
+            border-radius: var(--border-radius);
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1); /* Softer shadow */
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        
+        .card h2 {
+            color: var(--secondary-color);
+            margin-bottom: 15px;
+            border-bottom: 1px solid #dee2e6; /* Lighter border */
+            padding-bottom: 10px;
+            font-size: 1.2em;
+        }
+        
+        /* Command form styles */
+        .command-selector {
+            display: flex;
+            flex-wrap: wrap; /* Allow wrapping */
+            margin-bottom: 15px;
+        }
+        
+        .command-btn {
+            padding: 8px 15px;
+            margin-right: 10px;
+            margin-bottom: 10px; /* Spacing for wrapped buttons */
+            border: 1px solid #ced4da; /* Lighter border */
+            border-radius: var(--border-radius);
+            background-color: white;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .command-btn:hover {
+            background-color: #e9ecef; /* Lighter hover */
+        }
+        
+        .command-btn.active {
+            background-color: var(--primary-color);
+            color: white;
+            border-color: var(--primary-color);
+        }
+        
+        .parameters-form {
+            margin-bottom: 20px;
+        }
+        
+        .form-group {
+            margin-bottom: 15px;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 500;
+        }
+        
+        .form-control {
+            width: 100%;
+            padding: 8px 12px;
+            border: 1px solid #ced4da;
+            border-radius: var(--border-radius);
+        }
+        
+        .btn {
+            padding: 10px 15px;
+            border: none;
+            border-radius: var(--border-radius);
+            cursor: pointer;
+            font-weight: 500;
+            transition: background-color 0.2s;
+        }
+        
+        .btn-primary {
+            background-color: var(--primary-color);
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background-color: #0056b3; /* Darker hover */
+        }
+        
+        /* Log styles */
+        .log-area {
+            max-height: 500px;
+            overflow-y: auto;
+            background-color: #f1f3f5; /* Light background for log */
+            padding: 15px;
+            border-radius: var(--border-radius);
+            font-family: monospace;
+            font-size: 13px;
+        }
+
+        .log-entry {
+            padding: 10px;
+            margin-bottom: 10px;
+            border-radius: var(--border-radius);
+            word-wrap: break-word; /* Ensure long lines wrap */
+            white-space: pre-wrap; /* Preserve whitespace */
+        }
+
+        .log-request {
+            background-color: #e0e0e0;
+            border-left: 3px solid var(--info-color);
+        }
+
+        .log-response-success {
+            background-color: #d4edda;
+            border-left: 3px solid var(--success-color);
+        }
+
+        .log-response-error {
+            background-color: #f8d7da;
+            border-left: 3px solid var(--danger-color);
+            color: #721c24;
+        }
+
+        .log-timestamp {
+            font-size: 11px;
+            color: #6c757d;
+            display: block;
+            margin-bottom: 5px;
+        }
+        
+        /* Custom command styles */
+        #custom-parameters {
+            margin-top: 10px;
+        }
+        
+        .custom-param-row {
+            display: flex;
+            margin-bottom: 10px;
+        }
+        
+        .custom-param-row input {
+            flex-grow: 1;
+            margin-right: 10px;
+            padding: 8px 12px;
+            border: 1px solid #ced4da;
+            border-radius: var(--border-radius);
+        }
+        
+        .remove-param {
+            background-color: var(--danger-color);
+            color: white;
+            border: none;
+            border-radius: var(--border-radius);
+            cursor: pointer;
+            padding: 0 10px;
+            font-size: 1.2em; /* Make 'x' bigger */
+        }
+        
+        .add-param {
+            background-color: var(--success-color);
+            color: white;
+            border: none;
+            border-radius: var(--border-radius);
+            cursor: pointer;
+            padding: 5px 10px;
+            margin-bottom: 15px;
+        }
+        
+        /* Toast notifications (kept similar) */
+        .toast-container {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 1000;
+        }
+        
+        .toast {
+            padding: 15px 20px;
+            margin-bottom: 10px;
+            border-radius: var(--border-radius);
+            box-shadow: 0 3px 6px rgba(0, 0, 0, 0.16);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            min-width: 300px;
+            animation: slideIn 0.3s, fadeOut 0.5s 2.5s forwards;
+        }
+        
+        .toast-success { background-color: var(--success-color); }
+        .toast-error { background-color: var(--danger-color); }
+        .toast-info { background-color: var(--info-color); } /* Use info color */
+        
+        .close-toast {
+            background: none;
+            border: none;
+            color: white;
+            font-size: 16px;
+            cursor: pointer;
+            margin-left: 15px; /* Add some space */
+        }
+        
+        @keyframes slideIn {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+        
+        @keyframes fadeOut {
+            from { opacity: 1; }
+            to { opacity: 0; }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="container">
+            <h1>Op Server Frontend</h1>
+            <div class="status-indicator">
+                <div class="status-dot status-disconnected" id="status-dot"></div>
+                <span id="connection-status">Disconnected</span>
+            </div>
+        </div>
+    </header>
+    
+    <div class="container">
+        <div class="main-content">
+            <!-- Command Form -->
+            <div class="command-section">
+                <div class="card">
+                    <h2>Send Command</h2>
+                    
+                    <div class="command-selector">
+                        <button class="command-btn active" data-command="PING">Ping</button>
+                        <button class="command-btn" data-command="CALCULATE_SUM">Calculate Sum</button>
+                        <button class="command-btn" data-command="HEARTBEAT">Heartbeat</button>
+                        <button class="command-btn" data-command="GET_SYSTEM_STATUS">Get System Status</button>
+                        <button class="command-btn" data-command="CONTENT_SERVER_HELLO">Content Server Hello</button>
+                        <button class="command-btn" data-command="CONTENT_SERVER_UPDATE">Content Server Update</button>
+                        <button class="command-btn" data-command="SET_CONTENT_STATUS">Set Content Status</button>
+                        <button class="command-btn" data-command="GET_USER_PAIRINGS">Get User Pairings</button>
+                        <button class="command-btn" data-command="USER_PAIRING_UPDATED">User Pairing Updated</button>
+                        <button class="command-btn" data-command="CONTENT_LANGUAGE_SETTINGS">Content Language Settings</button>
+                        <button class="command-btn" data-command="CLOSE_CONTENT_SERVER">Close Content Server</button>
+                        <button class="command-btn" data-command="custom">Custom</button>
+                    </div>
+                    
+                    <div id="parameters-container">
+                        <!-- Ping Form (No params needed, but keep div for structure) -->
+                        <div class="parameters-form" id="PING-form">
+                            <p>Sends a simple PING command.</p>
+                        </div>
+                        
+                        <!-- Calculate Sum Form -->
+                        <div class="parameters-form" id="CALCULATE_SUM-form" style="display: none;">
+                            <div class="form-group">
+                                <label for="sum-num1">Number 1</label>
+                                <input type="number" id="sum-num1" class="form-control" value="10">
+                            </div>
+                            <div class="form-group">
+                                <label for="sum-num2">Number 2</label>
+                                <input type="number" id="sum-num2" class="form-control" value="25">
+                            </div>
+                        </div>
+
+                        <!-- Heartbeat Form -->
+                        <div class="parameters-form" id="HEARTBEAT-form" style="display: none;">
+                            <div class="form-group">
+                                <label for="heartbeat-vrId">VrID</label>
+                                <input type="text" id="heartbeat-vrId" class="form-control" value="VR001">
+                            </div>
+                             <div class="form-group">
+                                <label for="heartbeat-timestamp">Timestamp (Unix Epoch seconds)</label>
+                                <input type="number" id="heartbeat-timestamp" class="form-control" placeholder="Will be auto-filled">
+                                <small>Leave blank to send current time.</small>
+                            </div>
+                        </div>
+
+                        <!-- Get System Status Form -->
+                        <div class="parameters-form" id="GET_SYSTEM_STATUS-form" style="display: none;">
+                            <p>Retrieves the system status.</p>
+                        </div>
+
+                        <!-- Content Server Hello Form -->
+                        <div class="parameters-form" id="CONTENT_SERVER_HELLO-form" style="display: none;">
+                            <p>Sends a hello message to the content server.</p>
+                        </div>
+
+                        <!-- Content Server Update Form -->
+                        <div class="parameters-form" id="CONTENT_SERVER_UPDATE-form" style="display: none;">
+                            <p>Updates the content server.</p>
+                        </div>
+
+                        <!-- Set Content Status Form -->
+                        <div class="parameters-form" id="SET_CONTENT_STATUS-form" style="display: none;">
+                            <p>Sets the content status.</p>
+                        </div>
+
+                        <!-- Get User Pairings Form -->
+                        <div class="parameters-form" id="GET_USER_PAIRINGS-form" style="display: none;">
+                            <p>Retrieves user pairings.</p>
+                        </div>
+
+                        <!-- User Pairing Updated Form -->
+                        <div class="parameters-form" id="USER_PAIRING_UPDATED-form" style="display: none;">
+                            <p>Notifies of a user pairing update.</p>
+                        </div>
+
+                        <!-- Content Language Settings Form -->
+                        <div class="parameters-form" id="CONTENT_LANGUAGE_SETTINGS-form" style="display: none;">
+                            <p>Sets the content language settings.</p>
+                        </div>
+
+                        <!-- Close Content Server Form -->
+                        <!-- Close Content Server Form -->
+                        <div class="parameters-form" id="CLOSE_CONTENT_SERVER-form" style="display: none;">
+                            <p>Closes the content server.</p>
+                        </div>
+
+                        <!-- New OP Agent Command Forms -->
+                        <div class="parameters-form" id="CLIENT_STATUS_UPDATE-form" style="display: none;">
+                            <p>Updates the client status.</p>
+                        </div>
+                        <div class="parameters-form" id="STATUS_UPDATE-form" style="display: none;">
+                            <p>Updates the status.</p>
+                        </div>
+                        <div class="parameters-form" id="USER_PAIRED-form" style="display: none;">
+                            <p>Notifies that a user has been paired.</p>
+                        </div>
+                        <div class="parameters-form" id="START_CLIENT-form" style="display: none;">
+                            <p>Starts the client.</p>
+                        </div>
+                        <div class="parameters-form" id="RESTART_CONTENT_CLIENT_AGENT-form" style="display: none;">
+                            <p>Restarts the content client (agent).</p>
+                        </div>
+                        <div class="parameters-form" id="CLOSE_CONTENT_CLIENT_AGENT-form" style="display: none;">
+                            <p>Closes the content client (agent).</p>
+                        </div>
+
+                        <!-- New Frontend Command Forms -->
+                        <div class="parameters-form" id="CREATE_ROOM-form" style="display: none;">
+                            <p>Creates a room.</p>
+                        </div>
+                        <div class="parameters-form" id="PAIR_USER-form" style="display: none;">
+                            <p>Pairs a user.</p>
+                        </div>
+                        <div class="parameters-form" id="SET_CONTENT_LANGUAGE-form" style="display: none;">
+                            <p>Sets the content language.</p>
+                        </div>
+                        <div class="parameters-form" id="START_CONTENT-form" style="display: none;">
+                            <p>Starts the content.</p>
+                        </div>
+                        <div class="parameters-form" id="CHANGE_CONTENT_STATUS-form" style="display: none;">
+                            <p>Changes the content status.</p>
+                        </div>
+                        <div class="parameters-form" id="RESTART_CONTENT_CLIENT_FRONTEND-form" style="display: none;">
+                            <p>Restarts the content client (frontend).</p>
+                        </div>
+                        <div class="parameters-form" id="CLOSE_CONTENT-form" style="display: none;">
+                            <p>Closes the content.</p>
+                        </div>
+                        <div class="parameters-form" id="RELEASE_ROOM-form" style="display: none;">
+                            <p>Releases the room.</p>
+                        </div>
+                         <div class="parameters-form" id="ROOM_STATUS_UPDATE-form" style="display: none;">
+                            <p>Updates the room status.</p>
+                        </div>
+                        
+                        <!-- Custom Command Form -->
+                        <div class="parameters-form" id="custom-form" style="display: none;">
+                            <div class="form-group">
+                                <label for="custom-command">Command Name</label>
+                                <input type="text" id="custom-command" class="form-control" placeholder="Enter command name (e.g., MY_COMMAND)">
+                            </div>
+                            
+                            <label>Parameters</label>
+                            <button type="button" class="add-param" id="add-param-btn">+ Add Parameter</button>
+                            
+                            <div id="custom-parameters">
+                                <!-- Parameter rows added dynamically -->
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <button type="button" id="send-command" class="btn btn-primary">Send Command</button>
+                </div>
+            </div>
+            
+            <!-- Server Log -->
+            <div class="log-section">
+                <div class="card">
+                    <h2>Server Log</h2>
+                    <div class="log-area" id="log-area">
+                        <div class="log-entry">Waiting for connection...</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="toast-container" id="toast-container">
+        <!-- Toasts will be added here dynamically -->
+    </div>
+    
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const SERVER_URL = 'ws://localhost:8766'; // Updated port
+            
+            // DOM Elements
+            const statusDot = document.getElementById('status-dot');
+            const connectionStatus = document.getElementById('connection-status');
+            const commandButtons = document.querySelectorAll('.command-btn');
+            const sendCommandBtn = document.getElementById('send-command');
+            const logArea = document.getElementById('log-area');
+            const addParamBtn = document.getElementById('add-param-btn');
+            const customParametersDiv = document.getElementById('custom-parameters');
+            const toastContainer = document.getElementById('toast-container');
+            
+            // State
+            let currentCommand = 'PING'; // Default command
+            let websocket = null;
+            let isConnected = false;
+            
+            // Connect to WebSocket server
+            function connectWebSocket() {
+                logToUI("Attempting to connect to " + SERVER_URL + "...");
+                websocket = new WebSocket(SERVER_URL);
+                
+                websocket.onopen = function(event) {
+                    isConnected = true;
+                    updateConnectionStatus(true);
+                    showToast('Connected to Op Server', 'success');
+                    logToUI("Connection established.");
+                };
+                
+                websocket.onclose = function(event) {
+                    isConnected = false;
+                    updateConnectionStatus(false);
+                    const reason = event.reason || `code ${event.code}`;
+                    const message = `Disconnected from server (${reason}). Retrying in 5s...`;
+                    showToast(message, 'error');
+                    logToUI(message, 'error');
+                    
+                    // Try to reconnect after 5 seconds
+                    setTimeout(connectWebSocket, 5000);
+                };
+                
+                websocket.onerror = function(error) {
+                    console.error('WebSocket error:', error);
+                    const message = 'WebSocket connection error.';
+                    showToast(message, 'error');
+                    logToUI(message, 'error');
+                    // onclose will likely be called next, triggering reconnect
+                };
+                
+                websocket.onmessage = function(event) {
+                    try {
+                        const response = JSON.parse(event.data);
+                        handleServerMessage(response);
+                    } catch (e) {
+                        console.error("Failed to parse server message:", event.data, e);
+                        logToUI(`Received invalid message: ${event.data}`, 'error');
+                    }
+                };
+            }
+            
+            // Update connection status indicator
+            function updateConnectionStatus(connected) {
+                if (connected) {
+                    statusDot.classList.remove('status-disconnected');
+                    statusDot.classList.add('status-connected');
+                    connectionStatus.textContent = 'Connected';
+                } else {
+                    statusDot.classList.remove('status-connected');
+                    statusDot.classList.add('status-disconnected');
+                    connectionStatus.textContent = 'Disconnected';
+                }
+            }
+
+            // Log messages to the UI log area
+            function logToUI(message, type = 'info', data = null) {
+                const entry = document.createElement('div');
+                const timestamp = new Date().toLocaleTimeString();
+                let content = `<span class="log-timestamp">[${timestamp}]</span> ${message}`;
+                
+                if (data) {
+                    content += `\n${JSON.stringify(data, null, 2)}`;
+                }
+
+                entry.innerHTML = content;
+                entry.className = 'log-entry';
+
+                switch (type) {
+                    case 'request':
+                        entry.classList.add('log-request');
+                        break;
+                    case 'success':
+                        entry.classList.add('log-response-success');
+                        break;
+                    case 'error':
+                        entry.classList.add('log-response-error');
+                        break;
+                    default: // info or other
+                         entry.classList.add('log-request'); // Use request style for general info
+                         break; 
+                }
+
+                // Remove placeholder if it's the first message
+                const placeholder = logArea.querySelector('.log-entry:not([class*="log-"])');
+                if (placeholder && placeholder.textContent.includes("Waiting")) {
+                    placeholder.remove();
+                }
+
+                logArea.appendChild(entry);
+                // Scroll to the bottom
+                logArea.scrollTop = logArea.scrollHeight;
+            }
+            
+            // Show toast notification
+            function showToast(message, type = 'info') {
+                const toast = document.createElement('div');
+                toast.className = `toast toast-${type}`;
+                toast.innerHTML = `
+                    <span>${message}</span>
+                    <button class="close-toast">&times;</button> 
+                `;
+                
+                toastContainer.appendChild(toast);
+                
+                const timer = setTimeout(() => {
+                    toast.style.animation = 'fadeOut 0.5s forwards';
+                    setTimeout(() => toast.remove(), 500);
+                }, 3000);
+                
+                toast.querySelector('.close-toast').addEventListener('click', function() {
+                    clearTimeout(timer);
+                    toast.style.animation = 'fadeOut 0.5s forwards';
+                    setTimeout(() => toast.remove(), 500);
+                });
+            }
+            
+            // Handle messages from the server
+            function handleServerMessage(response) {
+                const status = response.status || 'error'; // Default to error if status missing
+                const message = response.message || 'No message received.';
+                const data = response.data || {};
+
+                logToUI(`Received: ${message}`, status, data);
+            }
+            
+            // Send command to server
+            function sendCommand() {
+                if (!isConnected) {
+                    showToast('Not connected to server', 'error');
+                    return;
+                }
+                
+                let commandName = currentCommand;
+                let commandData = {}; 
+                
+                // Get parameters based on current command
+                if (currentCommand === 'CALCULATE_SUM') {
+                    commandData.num1 = parseFloat(document.getElementById('sum-num1').value) || 0;
+                    commandData.num2 = parseFloat(document.getElementById('sum-num2').value) || 0;
+                } else if (currentCommand === 'HEARTBEAT') {
+                    commandData.vrId = document.getElementById('heartbeat-vrId').value || 'UnknownVrID';
+                    // Get timestamp or generate current if blank
+                    const tsInput = document.getElementById('heartbeat-timestamp');
+                    commandData.timestamp = parseFloat(tsInput.value) || (Date.now() / 1000); // Use current time in seconds if blank/invalid
+                    tsInput.value = commandData.timestamp; // Update input field
+                } else if (currentCommand === 'GET_SYSTEM_STATUS') {
+                    // No parameters needed
+                } else if (currentCommand === 'CLIENT_STATUS_UPDATE') {
+                    // No parameters needed
+                } else if (currentCommand === 'STATUS_UPDATE') {
+                    // No parameters needed
+                } else if (currentCommand === 'USER_PAIRED') {
+                    // No parameters needed
+                } else if (currentCommand === 'START_CLIENT') {
+                    // No parameters needed
+                } else if (currentCommand === 'RESTART_CONTENT_CLIENT_AGENT') {
+                    // No parameters needed
+                } else if (currentCommand === 'CLOSE_CONTENT_CLIENT_AGENT') {
+                    // No parameters needed
+                } else if (currentCommand === 'CREATE_ROOM') {
+                    // No parameters needed
+                } else if (currentCommand === 'PAIR_USER') {
+                    // No parameters needed
+                } else if (currentCommand === 'SET_CONTENT_LANGUAGE') {
+                    // No parameters needed
+                } else if (currentCommand === 'START_CONTENT') {
+                    // No parameters needed
+                } else if (currentCommand === 'CHANGE_CONTENT_STATUS') {
+                    // No parameters needed
+                } else if (currentCommand === 'RESTART_CONTENT_CLIENT_FRONTEND') {
+                    // No parameters needed
+                } else if (currentCommand === 'CLOSE_CONTENT') {
+                    // No parameters needed
+                } else if (currentCommand === 'RELEASE_ROOM') {
+                    // No parameters needed
+                } else if (currentCommand === 'ROOM_STATUS_UPDATE') {
+                    // No parameters needed
+                } else if (currentCommand === 'custom') {
+                    commandName = document.getElementById('custom-command').value.trim().toUpperCase();
+                    if (!commandName) {
+                        showToast('Please enter a command name for the custom command', 'warning');
+                        return;
+                    }
+
+                    // Get custom parameters
+                    const paramRows = document.querySelectorAll('#custom-parameters .custom-param-row');
+                    paramRows.forEach(row => {
+                        const nameInput = row.querySelector('.param-name');
+                        const valueInput = row.querySelector('.param-value');
+                        const name = nameInput.value.trim();
+                        const value = valueInput.value.trim();
+
+                        if (name) {
+                            // Basic type detection (number or string)
+                            if (value === 'true') commandData[name] = true;
+                            else if (value === 'false') commandData[name] = false;
+                            else if (!isNaN(Number(value)) && value !== '') commandData[name] = Number(value);
+                            else commandData[name] = value; // Default to string
+                        }
+                    });
+                }
+                // PING has no specific parameters added here
+
+                // Build the final message object
+                const messageToSend = {
+                    command: commandName,
+                    ...commandData // Spread parameters into the root object
+                };
+                
+                const jsonMessage = JSON.stringify(messageToSend);
+                
+                // Log and send
+                logToUI(`Sending command: ${commandName}`, 'request', commandData);
+                websocket.send(jsonMessage);
+                
+                showToast(`Command "${commandName}" sent`, 'info');
+            }
+            
+            // Switch between command types in the UI
+            function switchCommand(command) {
+                currentCommand = command;
+
+                // Hide all forms
+                document.querySelectorAll('.parameters-form').forEach(form => {
+                    form.style.display = 'none';
+                });
+
+                // Show selected form
+                const formToShow = document.getElementById(`${command}-form`);
+                if (formToShow) {
+                    formToShow.style.display = 'block';
+                } else {
+                    console.warn(`Form not found for command: ${command}-form`);
+                }
+
+                // Update button states
+                commandButtons.forEach(btn => {
+                    btn.classList.remove('active');
+                    if (btn.dataset.command === command) {
+                        btn.classList.add('active');
+                    }
+                });
+            }
+
+            // Add parameter row to custom command form
+            function addParameterRow() {
+                const row = document.createElement('div');
+                row.className = 'custom-param-row';
+                row.innerHTML = `
+                    <input type="text" placeholder="Parameter name" class="param-name form-control">
+                    <input type="text" placeholder="Parameter value (string, number, true/false)" class="param-value form-control">
+                    <button type="button" class="remove-param btn">&times;</button>
+                `;
+                
+                customParametersDiv.appendChild(row);
+                
+                // Add event listener to remove button
+                row.querySelector('.remove-param').addEventListener('click', function() {
+                    row.remove();
+                });
+            }
+            
+            // --- Event Listeners ---
+            commandButtons.forEach(btn => {
+                btn.addEventListener('click', function() {
+                    switchCommand(this.dataset.command);
+                });
+            });
+            
+            sendCommandBtn.addEventListener('click', sendCommand);
+            
+            addParamBtn.addEventListener('click', addParameterRow);
+            
+            // Initialize remove parameter buttons for any potentially pre-existing rows (though unlikely here)
+            document.querySelectorAll('.remove-param').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    this.closest('.custom-param-row').remove();
+                });
+            });
+            
+            // --- Initial Setup ---
+            switchCommand(currentCommand); // Set initial form visibility
+            connectWebSocket(); // Start connection attempt
+        });
+    </script>
+</body>
+</html>
