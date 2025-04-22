@@ -1,0 +1,756 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mini Operator System</title>
+    <style>
+        :root {
+            --primary-color: #3498db;
+            --secondary-color: #2c3e50;
+            --success-color: #2ecc71;
+            --danger-color: #e74c3c;
+            --warning-color: #f39c12;
+            --light-gray: #f5f5f5;
+            --dark-gray: #333;
+            --border-radius: 4px;
+        }
+        
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        body {
+            background-color: #f8f9fa;
+            color: var(--dark-gray);
+            line-height: 1.6;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        header {
+            background-color: var(--secondary-color);
+            color: white;
+            padding: 20px 0;
+            margin-bottom: 30px;
+        }
+        
+        header h1 {
+            text-align: center;
+        }
+        
+        header .status-indicator {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin-top: 10px;
+            font-size: 14px;
+        }
+        
+        .status-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+        
+        .status-connected {
+            background-color: var(--success-color);
+        }
+        
+        .status-disconnected {
+            background-color: var(--danger-color);
+        }
+        
+        .main-content {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+        }
+        
+        @media (max-width: 768px) {
+            .main-content {
+                grid-template-columns: 1fr;
+            }
+        }
+        
+        .card {
+            background-color: white;
+            border-radius: var(--border-radius);
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        
+        .card h2 {
+            color: var(--secondary-color);
+            margin-bottom: 15px;
+            border-bottom: 1px solid var(--light-gray);
+            padding-bottom: 10px;
+        }
+        
+        /* Operation form styles */
+        .operation-selector {
+            display: flex;
+            margin-bottom: 15px;
+        }
+        
+        .operation-btn {
+            padding: 8px 15px;
+            margin-right: 10px;
+            border: 1px solid var(--light-gray);
+            border-radius: var(--border-radius);
+            background-color: white;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .operation-btn:hover {
+            background-color: var(--light-gray);
+        }
+        
+        .operation-btn.active {
+            background-color: var(--primary-color);
+            color: white;
+            border-color: var(--primary-color);
+        }
+        
+        .parameters-form {
+            margin-bottom: 20px;
+        }
+        
+        .form-group {
+            margin-bottom: 15px;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 500;
+        }
+        
+        .form-control {
+            width: 100%;
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            border-radius: var(--border-radius);
+        }
+        
+        .btn {
+            padding: 10px 15px;
+            border: none;
+            border-radius: var(--border-radius);
+            cursor: pointer;
+            font-weight: 500;
+            transition: background-color 0.2s;
+        }
+        
+        .btn-primary {
+            background-color: var(--primary-color);
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background-color: #2980b9;
+        }
+        
+        /* Operations monitor styles */
+        .operations-list {
+            max-height: 500px;
+            overflow-y: auto;
+        }
+        
+        .operation-item {
+            padding: 15px;
+            border-bottom: 1px solid var(--light-gray);
+            position: relative;
+        }
+        
+        .operation-item:last-child {
+            border-bottom: none;
+        }
+        
+        .operation-header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+        }
+        
+        .operation-name {
+            font-weight: 600;
+        }
+        
+        .operation-id {
+            font-size: 12px;
+            color: #777;
+        }
+        
+        .operation-status-pending {
+            color: var(--warning-color);
+        }
+        
+        .operation-status-in-progress {
+            color: var(--primary-color);
+        }
+        
+        .operation-status-completed {
+            color: var(--success-color);
+        }
+        
+        .operation-status-failed {
+            color: var(--danger-color);
+        }
+        
+        .progress-container {
+            height: 10px;
+            background-color: var(--light-gray);
+            border-radius: 5px;
+            margin: 10px 0;
+            overflow: hidden;
+        }
+        
+        .progress-bar {
+            height: 100%;
+            background-color: var(--primary-color);
+            width: 0;
+            transition: width 0.3s ease;
+        }
+        
+        .operation-message {
+            font-size: 14px;
+            margin: 5px 0;
+        }
+        
+        .operation-result {
+            margin-top: 10px;
+            padding: 10px;
+            background-color: var(--light-gray);
+            border-radius: var(--border-radius);
+            font-family: monospace;
+            white-space: pre-wrap;
+        }
+        
+        .operation-error {
+            margin-top: 10px;
+            padding: 10px;
+            background-color: #ffecec;
+            border-left: 3px solid var(--danger-color);
+            color: var(--danger-color);
+        }
+        
+        /* Custom operation styles */
+        #custom-parameters {
+            margin-top: 10px;
+        }
+        
+        .custom-param-row {
+            display: flex;
+            margin-bottom: 10px;
+        }
+        
+        .custom-param-row input {
+            flex-grow: 1;
+            margin-right: 10px;
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            border-radius: var(--border-radius);
+        }
+        
+        .remove-param {
+            background-color: var(--danger-color);
+            color: white;
+            border: none;
+            border-radius: var(--border-radius);
+            cursor: pointer;
+            padding: 0 10px;
+        }
+        
+        .add-param {
+            background-color: var(--success-color);
+            color: white;
+            border: none;
+            border-radius: var(--border-radius);
+            cursor: pointer;
+            padding: 5px 10px;
+            margin-bottom: 15px;
+        }
+        
+        /* Toast notifications */
+        .toast-container {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 1000;
+        }
+        
+        .toast {
+            padding: 15px 20px;
+            margin-bottom: 10px;
+            border-radius: var(--border-radius);
+            box-shadow: 0 3px 6px rgba(0, 0, 0, 0.16);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            min-width: 300px;
+            animation: slideIn 0.3s, fadeOut 0.5s 2.5s forwards;
+        }
+        
+        .toast-success {
+            background-color: var(--success-color);
+        }
+        
+        .toast-error {
+            background-color: var(--danger-color);
+        }
+        
+        .toast-info {
+            background-color: var(--primary-color);
+        }
+        
+        .close-toast {
+            background: none;
+            border: none;
+            color: white;
+            font-size: 16px;
+            cursor: pointer;
+        }
+        
+        @keyframes slideIn {
+            from { transform: translateX(100%); }
+            to { transform: translateX(0); }
+        }
+        
+        @keyframes fadeOut {
+            from { opacity: 1; }
+            to { opacity: 0; }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="container">
+            <h1>Mini Operator System</h1>
+            <div class="status-indicator">
+                <div class="status-dot status-disconnected" id="status-dot"></div>
+                <span id="connection-status">Disconnected</span>
+            </div>
+        </div>
+    </header>
+    
+    <div class="container">
+        <div class="main-content">
+            <!-- Operation Form -->
+            <div class="operation-section">
+                <div class="card">
+                    <h2>Start Operation</h2>
+                    
+                    <div class="operation-selector">
+                        <button class="operation-btn active" data-operation="add">Add Numbers</button>
+                        <button class="operation-btn" data-operation="echo">Echo Message</button>
+                        <button class="operation-btn" data-operation="custom">Custom</button>
+                    </div>
+                    
+                    <div id="parameters-container">
+                        <!-- Add Numbers Form -->
+                        <div class="parameters-form" id="add-form">
+                            <div class="form-group">
+                                <label for="add-a">First Number (a)</label>
+                                <input type="number" id="add-a" class="form-control" value="5">
+                            </div>
+                            <div class="form-group">
+                                <label for="add-b">Second Number (b)</label>
+                                <input type="number" id="add-b" class="form-control" value="3">
+                            </div>
+                        </div>
+                        
+                        <!-- Echo Message Form -->
+                        <div class="parameters-form" id="echo-form" style="display: none;">
+                            <div class="form-group">
+                                <label for="echo-message">Message</label>
+                                <input type="text" id="echo-message" class="form-control" value="Hello, Operator!">
+                            </div>
+                        </div>
+                        
+                        <!-- Custom Operation Form -->
+                        <div class="parameters-form" id="custom-form" style="display: none;">
+                            <div class="form-group">
+                                <label for="custom-operation">Operation Name</label>
+                                <input type="text" id="custom-operation" class="form-control" placeholder="Enter operation name">
+                            </div>
+                            
+                            <label>Parameters</label>
+                            <button type="button" class="add-param" id="add-param-btn">+ Add Parameter</button>
+                            
+                            <div id="custom-parameters">
+                                <div class="custom-param-row">
+                                    <input type="text" placeholder="Parameter name" class="param-name">
+                                    <input type="text" placeholder="Parameter value" class="param-value">
+                                    <button type="button" class="remove-param">×</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <button type="button" id="start-operation" class="btn btn-primary">Start Operation</button>
+                </div>
+            </div>
+            
+            <!-- Operations Monitor -->
+            <div class="monitor-section">
+                <div class="card">
+                    <h2>Operations Monitor</h2>
+                    <div class="operations-list" id="operations-list">
+                        <!-- Operations will be added here dynamically -->
+                        <div class="operation-item operation-placeholder">
+                            <p>No operations have been started yet.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="toast-container" id="toast-container">
+        <!-- Toasts will be added here dynamically -->
+    </div>
+    
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const SERVER_URL = 'ws://localhost:8765';
+            
+            // DOM Elements
+            const statusDot = document.getElementById('status-dot');
+            const connectionStatus = document.getElementById('connection-status');
+            const operationButtons = document.querySelectorAll('.operation-btn');
+            const startOperationBtn = document.getElementById('start-operation');
+            const operationsList = document.getElementById('operations-list');
+            const addParamBtn = document.getElementById('add-param-btn');
+            const customParameters = document.getElementById('custom-parameters');
+            const toastContainer = document.getElementById('toast-container');
+            
+            // State
+            let currentOperation = 'add';
+            let websocket = null;
+            let operations = {};
+            let isConnected = false;
+            
+            // Connect to WebSocket server
+            function connectWebSocket() {
+                websocket = new WebSocket(SERVER_URL);
+                
+                websocket.onopen = function(event) {
+                    isConnected = true;
+                    updateConnectionStatus(true);
+                    showToast('Connected to operator server', 'success');
+                };
+                
+                websocket.onclose = function(event) {
+                    isConnected = false;
+                    updateConnectionStatus(false);
+                    showToast('Disconnected from server', 'error');
+                    
+                    // Try to reconnect after 5 seconds
+                    setTimeout(connectWebSocket, 5000);
+                };
+                
+                websocket.onerror = function(error) {
+                    console.error('WebSocket error:', error);
+                    showToast('Connection error', 'error');
+                };
+                
+                websocket.onmessage = function(event) {
+                    handleServerMessage(JSON.parse(event.data));
+                };
+            }
+            
+            // Update connection status indicator
+            function updateConnectionStatus(connected) {
+                if (connected) {
+                    statusDot.classList.remove('status-disconnected');
+                    statusDot.classList.add('status-connected');
+                    connectionStatus.textContent = 'Connected';
+                } else {
+                    statusDot.classList.remove('status-connected');
+                    statusDot.classList.add('status-disconnected');
+                    connectionStatus.textContent = 'Disconnected';
+                }
+            }
+            
+            // Show toast notification
+            function showToast(message, type = 'info') {
+                const toast = document.createElement('div');
+                toast.className = `toast toast-${type}`;
+                toast.innerHTML = `
+                    <span>${message}</span>
+                    <button class="close-toast">×</button>
+                `;
+                
+                toastContainer.appendChild(toast);
+                
+                // Remove toast after animation completes
+                setTimeout(() => {
+                    toast.remove();
+                }, 3000);
+                
+                // Close button functionality
+                toast.querySelector('.close-toast').addEventListener('click', function() {
+                    toast.remove();
+                });
+            }
+            
+            // Handle messages from the server
+            function handleServerMessage(message) {
+                const operationId = message.operation_id;
+                const messageType = message.type;
+                const content = message.content || {};
+                
+                // Create operation in UI if it doesn't exist yet
+                if (!operations[operationId]) {
+                    const operationName = content.operation || currentOperation;
+                    createOperationUI(operationId, operationName);
+                    operations[operationId] = {
+                        name: operationName,
+                        status: 'pending',
+                        progress: 0
+                    };
+                }
+                
+                // Update operation based on message type
+                switch (messageType) {
+                    case 'response':
+                        updateOperationUI(operationId, content.status, content.progress, null, content.result);
+                        break;
+                        
+                    case 'event':
+                        updateOperationUI(operationId, content.status, content.progress, content.message);
+                        break;
+                        
+                    case 'error':
+                        updateOperationUI(operationId, 'failed', null, null, null, content.error);
+                        break;
+                }
+            }
+            
+            // Create new operation in the UI
+            function createOperationUI(operationId, operationName) {
+                // Remove placeholder if present
+                const placeholder = document.querySelector('.operation-placeholder');
+                if (placeholder) {
+                    placeholder.remove();
+                }
+                
+                const operationElement = document.createElement('div');
+                operationElement.className = 'operation-item';
+                operationElement.id = `operation-${operationId}`;
+                operationElement.innerHTML = `
+                    <div class="operation-header">
+                        <span class="operation-name">${operationName}</span>
+                        <span class="operation-status operation-status-pending">Pending</span>
+                    </div>
+                    <div class="operation-id">${operationId}</div>
+                    <div class="progress-container">
+                        <div class="progress-bar" style="width: 0%"></div>
+                    </div>
+                    <div class="operation-message"></div>
+                    <div class="operation-result-container"></div>
+                `;
+                
+                // Add to top of the list
+                operationsList.insertBefore(operationElement, operationsList.firstChild);
+            }
+            
+            // Update operation in the UI
+            function updateOperationUI(operationId, status, progress, message, result, error) {
+                const operationElement = document.getElementById(`operation-${operationId}`);
+                if (!operationElement) return;
+                
+                // Update operation in state
+                operations[operationId] = {
+                    ...operations[operationId],
+                    status: status || operations[operationId].status,
+                    progress: progress !== null ? progress : operations[operationId].progress
+                };
+                
+                // Update status
+                const statusElement = operationElement.querySelector('.operation-status');
+                if (status) {
+                    statusElement.textContent = status.charAt(0).toUpperCase() + status.slice(1);
+                    
+                    // Remove all status classes
+                    statusElement.className = 'operation-status';
+                    
+                    // Add appropriate status class
+                    statusElement.classList.add(`operation-status-${status}`);
+                }
+                
+                // Update progress bar
+                if (progress !== null) {
+                    const progressBar = operationElement.querySelector('.progress-bar');
+                    progressBar.style.width = `${progress * 100}%`;
+                }
+                
+                // Update message
+                if (message) {
+                    const messageElement = operationElement.querySelector('.operation-message');
+                    messageElement.textContent = message;
+                }
+                
+                // Update result or error
+                const resultContainer = operationElement.querySelector('.operation-result-container');
+                
+                if (result) {
+                    resultContainer.innerHTML = `
+                        <div class="operation-result">${JSON.stringify(result, null, 2)}</div>
+                    `;
+                } else if (error) {
+                    resultContainer.innerHTML = `
+                        <div class="operation-error">${error}</div>
+                    `;
+                }
+            }
+            
+            // Send operation to server
+            function startOperation() {
+                if (!isConnected) {
+                    showToast('Not connected to server', 'error');
+                    return;
+                }
+                
+                let operationName = currentOperation;
+                let parameters = {};
+                
+                // Get parameters based on current operation
+                switch (currentOperation) {
+                    case 'add':
+                        parameters.a = parseFloat(document.getElementById('add-a').value);
+                        parameters.b = parseFloat(document.getElementById('add-b').value);
+                        break;
+                        
+                    case 'echo':
+                        parameters.message = document.getElementById('echo-message').value;
+                        break;
+                        
+                    case 'custom':
+                        operationName = document.getElementById('custom-operation').value;
+                        if (!operationName) {
+                            showToast('Please enter an operation name', 'error');
+                            return;
+                        }
+                        
+                        // Get custom parameters
+                        const paramRows = document.querySelectorAll('#custom-parameters .custom-param-row');
+                        paramRows.forEach(row => {
+                            const name = row.querySelector('.param-name').value.trim();
+                            const value = row.querySelector('.param-value').value.trim();
+                            
+                            if (name) {
+                                // Try to convert numeric values
+                                if (!isNaN(Number(value))) {
+                                    parameters[name] = Number(value);
+                                } else {
+                                    parameters[name] = value;
+                                }
+                            }
+                        });
+                        break;
+                }
+                
+                // Create operation ID
+                const operationId = 'op-' + Date.now().toString(36) + Math.random().toString(36).substr(2, 5);
+                
+                // Create command message
+                const command = {
+                    type: "command",
+                    operation_id: operationId,
+                    timestamp: Date.now() / 1000,
+                    content: {
+                        operation: operationName,
+                        parameters: parameters
+                    }
+                };
+                
+                // Send to server
+                websocket.send(JSON.stringify(command));
+                
+                // Create operation in UI
+                createOperationUI(operationId, operationName);
+                operations[operationId] = {
+                    name: operationName,
+                    status: 'pending',
+                    progress: 0
+                };
+                
+                showToast(`Operation "${operationName}" started`, 'info');
+            }
+            
+            // Switch between operation types
+            function switchOperation(operation) {
+                currentOperation = operation;
+                
+                // Hide all forms
+                document.querySelectorAll('.parameters-form').forEach(form => {
+                    form.style.display = 'none';
+                });
+                
+                // Show selected form
+                document.getElementById(`${operation}-form`).style.display = 'block';
+                
+                // Update button states
+                operationButtons.forEach(btn => {
+                    btn.classList.remove('active');
+                    if (btn.dataset.operation === operation) {
+                        btn.classList.add('active');
+                    }
+                });
+            }
+            
+            // Add parameter row to custom operation form
+            function addParameterRow() {
+                const row = document.createElement('div');
+                row.className = 'custom-param-row';
+                row.innerHTML = `
+                    <input type="text" placeholder="Parameter name" class="param-name">
+                    <input type="text" placeholder="Parameter value" class="param-value">
+                    <button type="button" class="remove-param">×</button>
+                `;
+                
+                customParameters.appendChild(row);
+                
+                // Add event listener to remove button
+                row.querySelector('.remove-param').addEventListener('click', function() {
+                    row.remove();
+                });
+            }
+            
+            // Event Listeners
+            operationButtons.forEach(btn => {
+                btn.addEventListener('click', function() {
+                    switchOperation(this.dataset.operation);
+                });
+            });
+            
+            startOperationBtn.addEventListener('click', startOperation);
+            
+            addParamBtn.addEventListener('click', addParameterRow);
+            
+            // Initialize remove parameter buttons
+            document.querySelectorAll('.remove-param').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    this.closest('.custom-param-row').remove();
+                });
+            });
+            
+            // Initialize WebSocket connection
+            connectWebSocket();
+        });
+    </script>
+</body>
+</html>
