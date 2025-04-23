@@ -344,6 +344,7 @@ async def get_system_status(params: Dict[str, Any]) -> Dict[str, Any]:
 async def create_room(params: Dict[str, Any]) -> Dict[str, Any]:
     logging.info(f"Received create_room command with params: {params}")
     vrIds = params.get("vrIds", [])
+    langeuage = params.get("language")
 
     server_time = datetime.now(timezone.utc).isoformat(timespec='seconds')
 
@@ -355,12 +356,24 @@ async def create_room(params: Dict[str, Any]) -> Dict[str, Any]:
             "contentId": "Content001",
             "startTime": server_time,
             "assignedVRs": vrIds,
-            "users": [
-                {"vrId": "VR001", "userToken": "usertoken123456", "language": "CHT"},
-                {"vrId": "VR002", "userToken": "usertoken789012", "language": "ENG"},
-                {"vrId": "VR003", "userToken": "", "language": "CHT"}
-            ]
+            "users": []
         }
+        
+        for vrId in vrIds:
+            for agent in agents:
+                if agent["vrId"] == vrId:
+                    agent["assignedRoom"] = new_room["roomId"]
+                    agent["clientState"] = "in_room"
+
+                    new_user = {
+                        "vrId": agent["vrId"],
+                        "userToken": "",
+                        "language": langeuage
+                    }
+
+                    new_room["users"].append(new_user)
+                    break
+        
         rooms.append(new_room)
         logging.info(f"Room created: {new_room}")
 
@@ -377,6 +390,41 @@ async def create_room(params: Dict[str, Any]) -> Dict[str, Any]:
            "serverTime": server_time
         }    
 
+async def pair_user(params: Dict[str, Any]) -> Dict[str, Any]:
+    logging.info(f"Received pair_user command with params: {params}")
+    roomId = str(params.get("roomId", 0))
+    vrId = params.get("vrId", 0)
+    userToken = str(params.get("userToken", 0))
+
+    try:
+        for room in rooms:
+            if room["roomId"] == roomId:
+                for user in room["users"]:
+                    if user["vrId"] == vrId:
+                        user["userToken"] = userToken
+                        logging.info(f"User paired: {user}")
+                        return {
+                            "status": "success",
+                            "message": "User paired successfully",
+                            "roomId": roomId,
+                            "vrId": vrId,
+                            "userToken": userToken
+                        }
+        
+        logging.error(f"Room or VR ID not found")
+        return {
+            "status": "error",
+            "message": "Room or VR ID not found",
+            "data": {}
+        }
+    except (ValueError, TypeError) as e:
+        logging.error(f"Invalid parameters for pair_user: {e}")
+        return {
+            "status": "error",
+            "message": f"Invalid parameters: {e}. Please provide valid 'roomId', 'vrId', and 'userToken'.",
+            "data": {}
+        }
+    
 class OpServerGUI(QMainWindow):
     def __init__(self):
         super().__init__()
@@ -539,7 +587,15 @@ class OpServerGUI(QMainWindow):
         # frontend commands
         self.server_thread.register_command_handler("GET_SYSTEM_STATUS", get_system_status)
         self.server_thread.register_command_handler("CREATE_ROOM", create_room)
-        
+        self.server_thread.register_command_handler("PAIR_USER", pair_user)
+        #self.server_thread.register_command_handler("SET_CONTENT_LANGUAGE", set_content_language)
+        #self.server_thread.register_command_handler("START_CONTENT", start_content)
+        #self.server_thread.register_command_handler("CHANGE_CONTENT_STATUS", change_content_status)
+        #self.server_thread.register_command_handler("RESTART_CONTENT_CLIENT", restart_content_client)
+        #self.server_thread.register_command_handler("CLOSE_CONTENT", close_content)
+        #self.server_thread.register_command_handler("RELEASE_ROOM", release_room)
+        #self.server_thread.register_command_handler("ROOM_STATUS_UPDATE", room_status_update)
+
         # Connect signals
         self.server_thread.server_status.connect(self.update_server_status)
         self.server_thread.client_connected.connect(self.add_client)

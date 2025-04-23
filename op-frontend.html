@@ -259,6 +259,7 @@
                         <button class="command-btn" data-command="HEARTBEAT">Heartbeat</button>
                         <button class="command-btn" data-command="GET_SYSTEM_STATUS">Get System Status</button>
                         <button class="command-btn" data-command="CREATE_ROOM">Create Room</button>
+                        <button class="command-btn" data-command="PAIR_USER">Pair User</button>
                         <button class="command-btn" data-command="custom">Custom</button>
                     </div>
                     
@@ -302,8 +303,28 @@
                         <!-- Create Room Form -->
                         <div class="parameters-form" id="CREATE_ROOM-form" style="display: none;">
                              <div class="form-group">
-                                <label for="create-room-vrids">Assigned VR IDs (comma-separated)</label>
+                              <label for="create-room-vrids">Assigned VR IDs (comma-separated)</label>
                                 <input type="text" id="create-room-vrids" class="form-control" placeholder="e.g., VR001,VR002,VR003">
+                            </div>
+                             <div class="form-group">
+                                <label for="create-room-language">Language</label>
+                                <input type="text" id="create-room-language" class="form-control" value="CHT" placeholder="e.g., CHT, ENG">
+                            </div>
+                        </div>
+
+                        <!-- Pair User Form -->
+                        <div class="parameters-form" id="PAIR_USER-form" style="display: none;">
+                             <div class="form-group">
+                                <label for="pair-user-roomid">Room ID</label>
+                                <input type="text" id="pair-user-roomid" class="form-control" placeholder="e.g., 8001">
+                            </div>
+                             <div class="form-group">
+                                <label for="pair-user-vrid">VR ID</label>
+                                <input type="text" id="pair-user-vrid" class="form-control" placeholder="e.g., VR001">
+                            </div>
+                             <div class="form-group">
+                                <label for="pair-user-token">User Token</label>
+                                <input type="text" id="pair-user-token" class="form-control" placeholder="Enter user token">
                             </div>
                         </div>
                         
@@ -628,6 +649,15 @@
                     } else if (currentCommand === 'CREATE_ROOM') {
                         const vrIdsString = document.getElementById('create-room-vrids').value.trim();
                         params.vrIds = vrIdsString ? vrIdsString.split(',').map(id => id.trim()).filter(id => id) : []; // Split, trim, remove empty
+                        params.language = document.getElementById('create-room-language').value.trim() || 'CHT'; // Add language, default CHT
+                    } else if (currentCommand === 'PAIR_USER') {
+                        params.roomId = document.getElementById('pair-user-roomid').value.trim();
+                        params.vrId = document.getElementById('pair-user-vrid').value.trim();
+                        params.userToken = document.getElementById('pair-user-token').value.trim();
+                        if (!params.roomId || !params.vrId || !params.userToken) {
+                            showToast('Room ID, VR ID, and User Token are required for PAIR_USER.', 'warning');
+                            return;
+                        }
                     } else if (currentCommand === 'GET_SYSTEM_STATUS') {
                         // No parameters needed
                     } else if (currentCommand === 'PING') {
