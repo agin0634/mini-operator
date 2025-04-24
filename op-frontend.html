@@ -3,769 +3,526 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Op Server Frontend</title>
+    <title>OpServer Frontend - Full Control</title>
     <style>
-        :root {
-            --primary-color: #007bff;
-            --secondary-color: #6c757d;
-            --success-color: #28a745;
-            --danger-color: #dc3545;
-            --warning-color: #ffc107;
-            --info-color: #17a2b8;
-            --light-gray: #f8f9fa;
-            --medium-gray: #e9ecef;
-            --dark-gray: #343a40;
-            --border-color: #ced4da;
-            --border-radius: 4px;
-        }
-        
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-        }
-        
         body {
-            background-color: var(--light-gray);
-            color: var(--dark-gray);
-            line-height: 1.6;
+            font-family: sans-serif; margin: 0; padding: 0;
+            background-color: #2b2b2b; color: #dcdcdc;
+            display: flex; flex-direction: column; min-height: 100vh;
         }
-        
-        .container {
-            max-width: 1400px; /* Wider container */
-            margin: 0 auto;
-            padding: 20px;
+        .container { padding: 20px; max-width: 1400px; margin: auto; width: 100%; box-sizing: border-box; }
+        h1, h2, h3 { color: #a9b7c6; border-bottom: 1px solid #444; padding-bottom: 8px; margin-top: 20px; margin-bottom: 15px; }
+        h1 { text-align: center; border-bottom: none; }
+        .section, .grid-item {
+            background-color: #3c3f41; border: 1px solid #555;
+            border-radius: 6px; padding: 15px; margin-bottom: 20px;
         }
-        
-        header {
-            background-color: var(--secondary-color);
-            color: white;
-            padding: 15px 0;
-            margin-bottom: 30px;
+        label { display: block; margin-bottom: 5px; font-weight: bold; font-size: 0.9em; color: #bbb; }
+        input[type="text"], input[type="number"], select {
+            width: calc(100% - 20px); /* Full width minus padding */
+            padding: 9px; margin-bottom: 12px;
+            border: 1px solid #666; border-radius: 4px;
+            background-color: #45494a; color: #dcdcdc;
+            box-sizing: border-box;
         }
-        
-        header h1 {
-            text-align: center;
-            font-size: 1.8em;
+        button {
+            background-color: #4a7e4a; color: white;
+            padding: 10px 15px; border: none; border-radius: 4px;
+            cursor: pointer; margin-right: 8px; margin-top: 5px;
+            transition: background-color 0.2s ease;
         }
-        
-        header .status-indicator {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            margin-top: 8px;
-            font-size: 14px;
+        button:hover:not(:disabled) { background-color: #5a9e5a; }
+        button:disabled { background-color: #555; cursor: not-allowed; color: #999; }
+        .status-indicator {
+            display: inline-block; padding: 5px 10px; border-radius: 4px;
+            color: white; font-size: 0.9em; margin-left: 10px;
         }
-        
-        .status-dot {
-            width: 12px;
-            height: 12px;
-            border-radius: 50%;
-            margin-right: 8px;
-        }
-        
-        .status-connected { background-color: var(--success-color); }
-        .status-disconnected { background-color: var(--danger-color); }
-        
-        .main-content {
-            display: grid;
-            /* Adjust grid for three columns */
-            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr)); 
-            gap: 30px;
-        }
-        
-        .card {
-            background-color: white;
-            border-radius: var(--border-radius);
-            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-            padding: 20px;
-            margin-bottom: 20px;
-            display: flex; /* Use flexbox for card layout */
-            flex-direction: column; /* Stack elements vertically */
-            height: 100%; /* Make cards fill grid cell height */
-        }
+        .status-connected { background-color: #3a8a3a; }
+        .status-disconnected { background-color: #a83a3a; }
+        .status-error { background-color: #b8860b; }
+        .status-connecting { background-color: #4682b4; }
 
-        .card-fixed-height {
-             min-height: 400px; /* Ensure minimum height for consistency */
+        #logs-container, #agent-status-container, #room-status-container {
+            background-color: #252526; border: 1px solid #555;
+            padding: 10px; height: 200px; overflow-y: scroll; margin-top: 10px;
+            font-family: 'Courier New', Courier, monospace; font-size: 0.9em;
+            white-space: pre-wrap; border-radius: 4px; color: #ccc;
         }
-        
-        .card h2 {
-            color: var(--secondary-color);
-            margin-bottom: 15px;
-            border-bottom: 1px solid #dee2e6;
-            padding-bottom: 10px;
-            font-size: 1.2em;
-        }
+        #agent-status-container, #room-status-container { height: 150px; } /* Slightly smaller */
 
-        .card-content {
-            flex-grow: 1; /* Allow content to fill space */
-            overflow-y: auto; /* Add scroll if content overflows */
-        }
-        
-        /* Command form styles */
-        .command-selector {
-            display: flex;
-            flex-wrap: wrap;
-            margin-bottom: 15px;
-            gap: 10px; /* Use gap for spacing */
-        }
-        
-        .command-btn {
-            padding: 8px 15px;
-            border: 1px solid var(--border-color);
-            border-radius: var(--border-radius);
-            background-color: white;
-            cursor: pointer;
-            transition: all 0.2s;
-        }
-        
-        .command-btn:hover { background-color: var(--medium-gray); }
-        
-        .command-btn.active {
-            background-color: var(--primary-color);
-            color: white;
-            border-color: var(--primary-color);
-        }
-        
-        .parameters-form { margin-bottom: 20px; }
-        .form-group { margin-bottom: 15px; }
-        
-        .form-group label {
-            display: block;
-            margin-bottom: 5px;
-            font-weight: 500;
-        }
-        
-        .form-control {
-            width: 100%;
-            padding: 8px 12px;
-            border: 1px solid var(--border-color);
-            border-radius: var(--border-radius);
-        }
+        table { width: 100%; border-collapse: collapse; margin-top: 0; }
+        th, td { border: 1px solid #555; padding: 8px; text-align: left; font-size: 0.9em; }
+        th { background-color: #3c3f41; color: #bbb; }
+        td { background-color: #45494a; }
 
-        textarea.form-control {
-            min-height: 80px;
-            resize: vertical;
-        }
-        
-        .btn {
-            padding: 10px 15px;
-            border: none;
-            border-radius: var(--border-radius);
-            cursor: pointer;
-            font-weight: 500;
-            transition: background-color 0.2s;
-            margin-top: auto; /* Push button to bottom of card */
-        }
-        
-        .btn-primary {
-            background-color: var(--primary-color);
-            color: white;
-        }
-        .btn-primary:hover { background-color: #0056b3; }
+        .grid-container { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; }
+        .grid-item h3 { margin-top: 0; font-size: 1em; border-bottom: 1px solid #555; padding-bottom: 5px; }
 
-        .btn-secondary {
-            background-color: var(--secondary-color);
-            color: white;
-        }
-        .btn-secondary:hover { background-color: #5a6268; }
-        
-        /* Log styles */
-        .log-area, .status-area {
-            max-height: 500px; /* Limit height */
-            overflow-y: auto;
-            background-color: #f1f3f5;
-            padding: 15px;
-            border-radius: var(--border-radius);
-            font-family: monospace;
-            font-size: 13px;
-            flex-grow: 1; /* Allow area to fill space */
-        }
+        .connection-controls { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+        .connection-controls input[type="text"] { flex-grow: 1; min-width: 200px; margin-bottom: 0; }
 
-        .log-entry, .status-entry {
-            padding: 8px; /* Slightly reduced padding */
-            margin-bottom: 8px;
-            border-radius: var(--border-radius);
-            word-wrap: break-word;
-            white-space: pre-wrap;
-            border-left: 3px solid transparent; /* Base border */
-        }
+        .log-controls { text-align: right; margin-top: 10px; }
+        .status-section-controls { margin-bottom: 10px; }
 
-        .log-request { background-color: #e0e0e0; border-left-color: var(--info-color); }
-        .log-response-success { background-color: #d4edda; border-left-color: var(--success-color); }
-        .log-response-error { background-color: #f8d7da; border-left-color: var(--danger-color); color: #721c24; }
-        .log-info { background-color: #d1ecf1; border-left-color: var(--info-color); color: #0c5460; }
-
-        .log-timestamp {
-            font-size: 11px;
-            color: #6c757d;
-            display: block;
-            margin-bottom: 5px;
-        }
-
-        /* System Status Styles */
-        .status-section { margin-bottom: 15px; }
-        .status-section h3 { font-size: 1em; margin-bottom: 8px; color: var(--primary-color); }
-        .status-list { list-style: none; padding-left: 0; }
-        .status-list li { background-color: #fff; border: 1px solid var(--border-color); padding: 8px; margin-bottom: 5px; border-radius: var(--border-radius); font-size: 0.9em; }
-        .status-list li strong { color: var(--secondary-color); }
-        
-        /* Custom command styles */
-        #custom-parameters { margin-top: 10px; }
-        .custom-param-row { display: flex; margin-bottom: 10px; gap: 10px; }
-        .custom-param-row input { flex-grow: 1; }
-        .remove-param { background-color: var(--danger-color); color: white; border: none; border-radius: var(--border-radius); cursor: pointer; padding: 0 10px; font-size: 1.2em; flex-shrink: 0; }
-        .add-param { background-color: var(--success-color); color: white; border: none; border-radius: var(--border-radius); cursor: pointer; padding: 5px 10px; margin-bottom: 15px; }
-        
-        /* Toast notifications */
-        .toast-container { position: fixed; top: 20px; right: 20px; z-index: 1000; }
-        .toast { padding: 15px 20px; margin-bottom: 10px; border-radius: var(--border-radius); box-shadow: 0 3px 6px rgba(0, 0, 0, 0.16); color: white; display: flex; align-items: center; justify-content: space-between; min-width: 300px; animation: slideIn 0.3s, fadeOut 0.5s 2.5s forwards; }
-        .toast-success { background-color: var(--success-color); }
-        .toast-error { background-color: var(--danger-color); }
-        .toast-info { background-color: var(--info-color); }
-        .close-toast { background: none; border: none; color: white; font-size: 16px; cursor: pointer; margin-left: 15px; }
-        @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
-        @keyframes fadeOut { from { opacity: 1; } to { opacity: 0; } }
-
-        /* Responsive adjustments */
-        @media (max-width: 768px) {
-            .main-content {
-                grid-template-columns: 1fr; /* Stack columns on smaller screens */
-            }
-        }
+        /* Log message colors */
+        .log-info { color: #ccc; }
+        .log-error { color: #ff8080; font-weight: bold; }
+        .log-sent { color: #80bfff; }
+        .log-received { color: #90ee90; }
     </style>
 </head>
 <body>
-    <header>
-        <div class="container">
-            <h1>Op Server Frontend</h1>
-            <div class="status-indicator">
-                <div class="status-dot status-disconnected" id="status-dot"></div>
-                <span id="connection-status">Disconnected</span>
+    <div class="container">
+        <h1>OpServer Frontend - Full Control</h1>
+
+        <div class="section">
+            <h2>Connection</h2>
+            <div class="connection-controls">
+                <label for="ws-url" style="margin-bottom:0;">WebSocket URL:</label>
+                <input type="text" id="ws-url" value="ws://127.0.0.1:8766">
+                <button id="connect-btn">Connect</button>
+                <button id="disconnect-btn" disabled>Disconnect</button>
+                <span>Status: <span id="conn-status" class="status-indicator status-disconnected">Disconnected</span></span>
             </div>
         </div>
-    </header>
-    
-    <div class="container">
-        <div class="main-content">
-            <!-- Command Form Card -->
-            <div class="card card-fixed-height">
-                <h2>Send Command</h2>
-                <div class="card-content">
-                    <div class="command-selector">
-                        <button class="command-btn active" data-command="PING">Ping</button>
-                        <button class="command-btn" data-command="CALCULATE_SUM">Calculate Sum</button>
-                        <button class="command-btn" data-command="HEARTBEAT">Heartbeat</button>
-                        <button class="command-btn" data-command="GET_SYSTEM_STATUS">Get System Status</button>
-                        <button class="command-btn" data-command="CREATE_ROOM">Create Room</button>
-                        <button class="command-btn" data-command="PAIR_USER">Pair User</button>
-                        <button class="command-btn" data-command="custom">Custom</button>
-                    </div>
-                    
-                    <div id="parameters-container">
-                        <!-- Ping Form -->
-                        <div class="parameters-form" id="PING-form">
-                            <p>Sends a simple PING command to the server.</p>
-                        </div>
-                        
-                        <!-- Calculate Sum Form -->
-                        <div class="parameters-form" id="CALCULATE_SUM-form" style="display: none;">
-                            <div class="form-group">
-                                <label for="sum-num1">Number 1</label>
-                                <input type="number" id="sum-num1" class="form-control" value="10">
-                            </div>
-                            <div class="form-group">
-                                <label for="sum-num2">Number 2</label>
-                                <input type="number" id="sum-num2" class="form-control" value="25">
-                            </div>
-                        </div>
 
-                        <!-- Heartbeat Form -->
-                        <div class="parameters-form" id="HEARTBEAT-form" style="display: none;">
-                            <div class="form-group">
-                                <label for="heartbeat-vrId">VrID</label>
-                                <input type="text" id="heartbeat-vrId" class="form-control" value="VR001">
-                            </div>
-                             <div class="form-group">
-                                <label for="heartbeat-timestamp">Timestamp (Unix Epoch seconds)</label>
-                                <input type="number" step="any" id="heartbeat-timestamp" class="form-control" placeholder="Leave blank for current time">
-                                <small>Leave blank to send current server time.</small>
-                            </div>
-                        </div>
-
-                        <!-- Get System Status Form -->
-                        <div class="parameters-form" id="GET_SYSTEM_STATUS-form" style="display: none;">
-                            <p>Retrieves the current status of agents and rooms from the server.</p>
-                            <button type="button" id="refresh-status-btn" class="btn btn-secondary" style="margin-top: 10px;">Refresh Status Now</button>
-                        </div>
-
-                        <!-- Create Room Form -->
-                        <div class="parameters-form" id="CREATE_ROOM-form" style="display: none;">
-                             <div class="form-group">
-                              <label for="create-room-vrids">Assigned VR IDs (comma-separated)</label>
-                                <input type="text" id="create-room-vrids" class="form-control" placeholder="e.g., VR001,VR002,VR003">
-                            </div>
-                             <div class="form-group">
-                                <label for="create-room-language">Language</label>
-                                <input type="text" id="create-room-language" class="form-control" value="CHT" placeholder="e.g., CHT, ENG">
-                            </div>
-                        </div>
-
-                        <!-- Pair User Form -->
-                        <div class="parameters-form" id="PAIR_USER-form" style="display: none;">
-                             <div class="form-group">
-                                <label for="pair-user-roomid">Room ID</label>
-                                <input type="text" id="pair-user-roomid" class="form-control" placeholder="e.g., 8001">
-                            </div>
-                             <div class="form-group">
-                                <label for="pair-user-vrid">VR ID</label>
-                                <input type="text" id="pair-user-vrid" class="form-control" placeholder="e.g., VR001">
-                            </div>
-                             <div class="form-group">
-                                <label for="pair-user-token">User Token</label>
-                                <input type="text" id="pair-user-token" class="form-control" placeholder="Enter user token">
-                            </div>
-                        </div>
-                        
-                        <!-- Custom Command Form -->
-                        <div class="parameters-form" id="custom-form" style="display: none;">
-                            <div class="form-group">
-                                <label for="custom-command">Command Name</label>
-                                <input type="text" id="custom-command" class="form-control" placeholder="Enter command name (e.g., MY_COMMAND)">
-                            </div>
-                            <label>Parameters (Key-Value Pairs)</label>
-                            <button type="button" class="add-param" id="add-param-btn">+ Add Parameter</button>
-                            <div id="custom-parameters">
-                                <!-- Parameter rows added dynamically -->
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                <button type="button" id="send-command" class="btn btn-primary">Send Command</button>
+        <div class="section">
+            <h2>System Status</h2>
+            <div class="status-section-controls">
+                 <button id="refresh-status-btn" disabled>Refresh Status</button>
             </div>
-            
-            <!-- System Status Card -->
-            <div class="card card-fixed-height">
-                <h2>System Status</h2>
-                 <div class="card-content status-area" id="system-status-area">
-                    <div class="status-entry">Waiting for status update...</div>
-                    <!-- Status will be populated here -->
-                </div>
-                 <button type="button" id="manual-refresh-status-btn" class="btn btn-secondary">Refresh Status</button>
+            <h3>Agents</h3>
+            <div id="agent-status-container">Agent status will appear here...</div>
+            <h3>Rooms</h3>
+            <div id="room-status-container">Room status will appear here...</div>
+        </div>
+
+        <h2>Command Controls</h2>
+        <div class="grid-container">
+
+            <div class="grid-item">
+                <h3>Basic Tests</h3>
+                <button id="ping-btn" disabled>Send PING</button>
+                <hr style="border-color: #555; margin: 15px 0;">
+                <label for="calc-num1">Number 1:</label>
+                <input type="number" id="calc-num1" value="5">
+                <label for="calc-num2">Number 2:</label>
+                <input type="number" id="calc-num2" value="10">
+                <button id="calc-sum-btn" disabled>Calculate Sum</button>
             </div>
 
-            <!-- Server Log Card -->
-            <div class="card card-fixed-height">
-                <h2>Server Log</h2>
-                <div class="card-content log-area" id="log-area">
-                    <div class="log-entry log-info">Waiting for connection...</div>
-                </div>
-                 <button type="button" id="clear-log-btn" class="btn btn-secondary">Clear Log</button>
+            <div class="grid-item">
+                <h3>Agent Heartbeat</h3>
+                <label for="heartbeat-vrid">VR ID:</label>
+                <input type="text" id="heartbeat-vrid" placeholder="e.g., VR01">
+                <button id="heartbeat-btn" disabled>Send Heartbeat</button>
+            </div>
+
+            <div class="grid-item">
+                <h3>Create Room</h3>
+                <label for="create-vrids">VR IDs (comma-separated):</label>
+                <input type="text" id="create-vrids" placeholder="e.g., VR01,VR02">
+                <label for="create-language">Language:</label>
+                <input type="text" id="create-language" value="EN">
+                <button id="create-room-btn" disabled>Create Room</button>
+            </div>
+
+            <div class="grid-item">
+                <h3>Pair User</h3>
+                <label for="pair-roomid">Room ID:</label>
+                <input type="text" id="pair-roomid" placeholder="e.g., 8001">
+                <label for="pair-vrid">VR ID:</label>
+                <input type="text" id="pair-vrid" placeholder="e.g., VR01">
+                <label for="pair-token">User Token:</label>
+                <input type="text" id="pair-token" placeholder="User's unique token">
+                <button id="pair-user-btn" disabled>Pair User</button>
+            </div>
+
+            <div class="grid-item">
+                <h3>Set Content Language</h3>
+                <label for="lang-roomid">Room ID:</label>
+                <input type="text" id="lang-roomid" placeholder="e.g., 8001">
+                <label for="lang-vrid">VR ID:</label>
+                <input type="text" id="lang-vrid" placeholder="e.g., VR01">
+                <label for="lang-language">Language:</label>
+                <input type="text" id="lang-language" placeholder="e.g., JP">
+                <button id="set-lang-btn" disabled>Set Language</button>
+            </div>
+
+            <div class="grid-item">
+                <h3>Start Content</h3>
+                <label for="start-roomid">Room ID:</label>
+                <input type="text" id="start-roomid" placeholder="e.g., 8001">
+                <label for="start-contentid">Content ID:</label>
+                <input type="text" id="start-contentid" placeholder="e.g., Content001">
+                <button id="start-content-btn" disabled>Start Content</button>
+            </div>
+
+            <div class="grid-item">
+                <h3>Change Content Status</h3>
+                <label for="status-roomid">Room ID:</label>
+                <input type="text" id="status-roomid" placeholder="e.g., 8001">
+                <label for="status-value">Status:</label>
+                <select id="status-value">
+                    <option value="Playing">Playing</option>
+                    <option value="Paused">Paused</option>
+                    <option value="End">End</option>
+                    <option value="Ready">Ready</option>
+                </select>
+                <button id="change-status-btn" disabled>Change Status</button>
+            </div>
+
+            <div class="grid-item">
+                <h3>Restart Content Client</h3>
+                <label for="restart-roomid">Room ID:</label>
+                <input type="text" id="restart-roomid" placeholder="e.g., 8001">
+                <label for="restart-vrid">VR ID:</label>
+                <input type="text" id="restart-vrid" placeholder="e.g., VR01">
+                <label for="restart-contentid">Content ID:</label>
+                <input type="text" id="restart-contentid" placeholder="e.g., Content001">
+                <button id="restart-client-btn" disabled>Restart Client</button>
+            </div>
+
+            <div class="grid-item">
+                <h3>Close Content</h3>
+                <label for="close-roomid">Room ID:</label>
+                <input type="text" id="close-roomid" placeholder="e.g., 8001">
+                <button id="close-content-btn" disabled>Close Content</button>
+            </div>
+
+            <div class="grid-item">
+                <h3>Release Room</h3>
+                <label for="release-roomid">Room ID:</label>
+                <input type="text" id="release-roomid" placeholder="e.g., 8001">
+                <button id="release-room-btn" disabled>Release Room</button>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>Logs</h2>
+            <div id="logs-container">Logs will appear here...</div>
+            <div class="log-controls">
+                <button id="clear-log-btn">Clear Log</button>
             </div>
         </div>
     </div>
-    
-    <div class="toast-container" id="toast-container"></div>
-    
+
     <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            const SERVER_URL = `ws://${window.location.hostname || 'localhost'}:8766`; // Use hostname or default to localhost
-            
-            // DOM Elements
-            const statusDot = document.getElementById('status-dot');
-            const connectionStatus = document.getElementById('connection-status');
-            const commandButtons = document.querySelectorAll('.command-btn');
-            const sendCommandBtn = document.getElementById('send-command');
-            const logArea = document.getElementById('log-area');
-            const systemStatusArea = document.getElementById('system-status-area');
-            const addParamBtn = document.getElementById('add-param-btn');
-            const customParametersDiv = document.getElementById('custom-parameters');
-            const toastContainer = document.getElementById('toast-container');
-            const refreshStatusBtn = document.getElementById('refresh-status-btn');
-            const manualRefreshStatusBtn = document.getElementById('manual-refresh-status-btn');
-            const clearLogBtn = document.getElementById('clear-log-btn');
-            
-            // State
-            let currentCommand = 'PING'; // Default command
-            let websocket = null;
-            let isConnected = false;
-            let reconnectInterval = null;
-            let statusRefreshInterval = null; // Timer for auto-refresh
-            
-            // Connect to WebSocket server
-            function connectWebSocket() {
-                if (reconnectInterval) clearInterval(reconnectInterval); // Clear existing interval if any
-                logToUI("Attempting to connect to " + SERVER_URL + "...", 'info');
-                
-                // Close existing socket if necessary
-                if (websocket && websocket.readyState !== WebSocket.CLOSED) {
-                    websocket.close();
-                }
+        const wsUrlInput = document.getElementById('ws-url');
+        const connectBtn = document.getElementById('connect-btn');
+        const disconnectBtn = document.getElementById('disconnect-btn');
+        const connStatus = document.getElementById('conn-status');
+        const logsDiv = document.getElementById('logs-container');
+        const agentStatusDiv = document.getElementById('agent-status-container');
+        const roomStatusDiv = document.getElementById('room-status-container');
+        const clearLogBtn = document.getElementById('clear-log-btn');
 
-                websocket = new WebSocket(SERVER_URL);
-                
-                websocket.onopen = function(event) {
-                    isConnected = true;
-                    updateConnectionStatus(true);
-                    showToast('Connected to Op Server', 'success');
-                    logToUI("Connection established.", 'success');
-                    if (reconnectInterval) clearInterval(reconnectInterval); // Stop retrying on successful connection
-                    
-                    // Request initial status immediately
-                    sendCommandInternal('GET_SYSTEM_STATUS', {}); 
-                    
-                    // Start auto-refresh timer
-                    if (statusRefreshInterval) clearInterval(statusRefreshInterval); // Clear old timer if exists
-                    statusRefreshInterval = setInterval(requestSystemStatus, 5000); // Refresh every 5 seconds
-                    logToUI("Started automatic status refresh (every 3s).", 'info');
-                };
-                
-                websocket.onclose = function(event) {
-                    // Stop auto-refresh timer
-                    if (statusRefreshInterval) {
-                        clearInterval(statusRefreshInterval);
-                        statusRefreshInterval = null;
-                        logToUI("Stopped automatic status refresh.", 'info');
-                    }
-                    isConnected = false;
-                    updateConnectionStatus(false);
-                    const reason = event.reason || `code ${event.code}`;
-                    const message = `Disconnected (${reason}). Retrying...`;
-                    // Only show toast on initial disconnect, not every retry
-                    if (!reconnectInterval) {
-                         showToast(message, 'error');
-                    }
-                    logToUI(message, 'error');
-                    
-                    // Simple exponential backoff (or just fixed interval)
-                    if (!reconnectInterval) {
-                        reconnectInterval = setInterval(connectWebSocket, 5000); // Retry every 5 seconds
-                    }
-                };
-                
-                websocket.onerror = function(error) {
-                    console.error('WebSocket error:', error);
-                    // Don't show toast here, onclose will handle it
-                    logToUI('WebSocket connection error.', 'error');
-                    // Ensure connection status is updated
-                    isConnected = false;
-                    updateConnectionStatus(false);
-                    // Stop auto-refresh timer
-                    if (statusRefreshInterval) {
-                        clearInterval(statusRefreshInterval);
-                        statusRefreshInterval = null;
-                        logToUI("Stopped automatic status refresh due to error.", 'info');
-                    }
-                    // onclose will likely be called next, triggering reconnect logic
-                };
-                
-                websocket.onmessage = function(event) {
-                    try {
-                        const response = JSON.parse(event.data);
-                        handleServerMessage(response);
-                    } catch (e) {
-                        console.error("Failed to parse server message:", event.data, e);
-                        logToUI(`Received invalid JSON: ${event.data}`, 'error');
-                    }
-                };
+        // Action Buttons
+        const refreshStatusBtn = document.getElementById('refresh-status-btn');
+        const pingBtn = document.getElementById('ping-btn');
+        const calcSumBtn = document.getElementById('calc-sum-btn');
+        const createRoomBtn = document.getElementById('create-room-btn');
+        const pairUserBtn = document.getElementById('pair-user-btn');
+        const setLangBtn = document.getElementById('set-lang-btn');
+        const startContentBtn = document.getElementById('start-content-btn');
+        const changeStatusBtn = document.getElementById('change-status-btn');
+        const restartClientBtn = document.getElementById('restart-client-btn');
+        const closeContentBtn = document.getElementById('close-content-btn');
+        const releaseRoomBtn = document.getElementById('release-room-btn');
+        const heartbeatBtn = document.getElementById('heartbeat-btn'); // Added Heartbeat button
+
+        let websocket = null;
+        const actionButtons = [
+            refreshStatusBtn, pingBtn, calcSumBtn, createRoomBtn, pairUserBtn, setLangBtn,
+            startContentBtn, changeStatusBtn, restartClientBtn,
+            closeContentBtn, releaseRoomBtn, heartbeatBtn // Added Heartbeat button to the list
+        ];
+
+        function logMessage(message, type = 'info') {
+            const timestamp = new Date().toLocaleTimeString();
+            const logEntry = document.createElement('div');
+            logEntry.textContent = `[${timestamp}] ${type.toUpperCase()}: ${message}`;
+            logEntry.classList.add(`log-${type}`); // Add class for styling
+            logsDiv.appendChild(logEntry);
+            logsDiv.scrollTop = logsDiv.scrollHeight; // Auto-scroll
+        }
+
+        function updateConnectionStatus(status, message) {
+            connStatus.textContent = message;
+            connStatus.className = `status-indicator status-${status}`; // status: connected, disconnected, error, connecting
+            connectBtn.disabled = (status === 'connected' || status === 'connecting');
+            disconnectBtn.disabled = (status !== 'connected');
+            wsUrlInput.disabled = (status === 'connected' || status === 'connecting');
+
+            actionButtons.forEach(btn => {
+                btn.disabled = (status !== 'connected');
+            });
+        }
+
+        function connectWebSocket() {
+            const url = wsUrlInput.value;
+            if (!url) {
+                logMessage('WebSocket URL cannot be empty.', 'error');
+                return;
             }
-            
-            // Update connection status indicator
-            function updateConnectionStatus(connected) {
-                if (connected) {
-                    statusDot.classList.remove('status-disconnected');
-                    statusDot.classList.add('status-connected');
-                    connectionStatus.textContent = 'Connected';
-                } else {
-                    statusDot.classList.remove('status-connected');
-                    statusDot.classList.add('status-disconnected');
-                    connectionStatus.textContent = 'Disconnected';
-                }
-            }
+            logMessage(`Attempting to connect to ${url}...`, 'info');
+            updateConnectionStatus('connecting', 'Connecting...');
 
-            // Log messages to the UI log area
-            function logToUI(message, type = 'info', data = null) {
-                const entry = document.createElement('div');
-                const timestamp = new Date().toLocaleTimeString();
-                let content = `<span class="log-timestamp">[${timestamp}]</span> ${message}`;
-                
-                if (data && Object.keys(data).length > 0) { // Only show data if it's not empty
-                    try {
-                        content += `\n${JSON.stringify(data, null, 2)}`;
-                    } catch (e) {
-                        content += `\n[Could not stringify data: ${e}]`;
-                    }
-                }
+            websocket = new WebSocket(url);
 
-                entry.innerHTML = content;
-                entry.className = 'log-entry';
+            websocket.onopen = () => {
+                logMessage('WebSocket connection established.', 'info');
+                updateConnectionStatus('connected', 'Connected');
+                sendCommand('GET_SYSTEM_STATUS', {}); // Request initial status on connect
+            };
 
-                switch (type) {
-                    case 'request': entry.classList.add('log-request'); break;
-                    case 'success': entry.classList.add('log-response-success'); break;
-                    case 'error': entry.classList.add('log-response-error'); break;
-                    default: entry.classList.add('log-info'); break; // Use info for general messages
-                }
-
-                // Remove placeholder if it exists
-                const placeholder = logArea.querySelector('.log-info:only-child');
-                if (placeholder && placeholder.textContent.includes("Waiting")) {
-                    placeholder.remove();
-                }
-
-                logArea.appendChild(entry);
-                logArea.scrollTop = logArea.scrollHeight; // Scroll to bottom
-            }
-
-            // Update the System Status display area
-            function updateSystemStatusUI(agents = [], rooms = []) {
-                 systemStatusArea.innerHTML = ''; // Clear previous status
-
-                 if (!agents.length && !rooms.length) {
-                     systemStatusArea.innerHTML = '<div class="status-entry log-info">No agents or rooms reported.</div>';
-                     return;
-                 }
-
-                 // Agents Section
-                 const agentsSection = document.createElement('div');
-                 agentsSection.className = 'status-section';
-                 agentsSection.innerHTML = '<h3>Agents</h3>';
-                 const agentList = document.createElement('ul');
-                 agentList.className = 'status-list';
-                 if (agents.length > 0) {
-                     agents.forEach(agent => {
-                         const li = document.createElement('li');
-                         li.innerHTML = `<strong>ID:</strong> ${agent.vrId || 'N/A'} | <strong>Status:</strong> ${agent.connectionStatus || 'N/A'} | <strong>Content:</strong> ${agent.currentContent || 'N/A'} | <strong>Room:</strong> ${agent.assignedRoom || 'None'}`;
-                         agentList.appendChild(li);
-                     });
-                 } else {
-                     agentList.innerHTML = '<li>No agents connected.</li>';
-                 }
-                 agentsSection.appendChild(agentList);
-                 systemStatusArea.appendChild(agentsSection);
-
-                 // Rooms Section
-                 const roomsSection = document.createElement('div');
-                 roomsSection.className = 'status-section';
-                 roomsSection.innerHTML = '<h3>Rooms</h3>';
-                 const roomList = document.createElement('ul');
-                 roomList.className = 'status-list';
-                  if (rooms.length > 0) {
-                     rooms.forEach(room => {
-                         const li = document.createElement('li');
-                         const vrIds = Array.isArray(room.assignedVRs) ? room.assignedVRs.join(', ') : 'None';
-                         li.innerHTML = `<strong>ID:</strong> ${room.roomId || 'N/A'} | <strong>Status:</strong> ${room.status || 'N/A'} | <strong>Content:</strong> ${room.contentName || 'N/A'} (${room.contentId || 'N/A'}) | <strong>VRs:</strong> ${vrIds}`;
-                         roomList.appendChild(li);
-                     });
-                 } else {
-                     roomList.innerHTML = '<li>No active rooms.</li>';
-                 }
-                 roomsSection.appendChild(roomList);
-                 systemStatusArea.appendChild(roomsSection);
-
-                 systemStatusArea.scrollTop = 0; // Scroll to top after update
-            }
-            
-            // Show toast notification
-            function showToast(message, type = 'info') {
-                const toast = document.createElement('div');
-                toast.className = `toast toast-${type}`;
-                toast.innerHTML = `<span>${message}</span><button class="close-toast">&times;</button>`;
-                toastContainer.appendChild(toast);
-                
-                const removeToast = () => {
-                    toast.style.animation = 'fadeOut 0.5s forwards';
-                    setTimeout(() => toast.remove(), 500);
-                };
-
-                const timer = setTimeout(removeToast, 5000);
-                toast.querySelector('.close-toast').addEventListener('click', () => {
-                    clearTimeout(timer);
-                    removeToast();
-                });
-            }
-            
-            // Handle messages from the server
-            function handleServerMessage(response) {
-                const status = response.status || 'info'; // Default to info if status missing
-                const message = response.message || 'Received raw message'; // Generic message
-                // Log the entire response object
-                logToUI(`Received:`, status, response); 
-
-                // Special handling for GET_SYSTEM_STATUS response based on structure
-                if (response.status === 'success' && response.agents !== undefined && response.rooms !== undefined) {
-                     updateSystemStatusUI(response.agents, response.rooms);
-                } 
-                
-                // Show toast only for explicit errors
-                if (response.status === 'error') {
-                    showToast(`Error: ${response.message || 'Unknown server error'}`, 'error');
-                }
-            }
-
-            // Internal function to send command without logging request again
-            function sendCommandInternal(commandName, params) {
-                 if (!isConnected) {
-                    showToast('Not connected to server', 'error');
-                    logToUI('Cannot send command: Not connected.', 'error');
-                    return false;
-                }
-                 const messageToSend = {
-                    command: commandName,
-                    ...params // Spread parameters into the root object
-                };
-                const jsonMessage = JSON.stringify(messageToSend);
-                websocket.send(jsonMessage);
-                return true;
-            }
-            
-            // Gather parameters and send command (called by button click)
-            function sendSelectedCommand() {
-                let commandName = currentCommand;
-                let params = {}; 
-                
+            websocket.onmessage = (event) => {
+                logMessage(`Received: ${event.data}`, 'received');
                 try {
-                    // Get parameters based on current command
-                    if (currentCommand === 'CALCULATE_SUM') {
-                        params.num1 = parseFloat(document.getElementById('sum-num1').value) || 0;
-                        params.num2 = parseFloat(document.getElementById('sum-num2').value) || 0;
-                    } else if (currentCommand === 'HEARTBEAT') {
-                        params.vrId = document.getElementById('heartbeat-vrId').value || 'UnknownVrID';
-                        const tsInput = document.getElementById('heartbeat-timestamp').value;
-                        // Only include timestamp if provided, otherwise server uses its own time
-                        if (tsInput) {
-                             params.timestamp = parseFloat(tsInput);
-                             if (isNaN(params.timestamp)) {
-                                 showToast('Invalid timestamp provided for HEARTBEAT.', 'warning');
-                                 return; // Don't send if timestamp is invalid
-                             }
-                        } else {
-                             // Send current time if field is empty
-                             params.timestamp = Date.now() / 1000;
-                             // Optionally update the field
-                             // document.getElementById('heartbeat-timestamp').value = params.timestamp;
-                        }
-                    } else if (currentCommand === 'CREATE_ROOM') {
-                        const vrIdsString = document.getElementById('create-room-vrids').value.trim();
-                        params.vrIds = vrIdsString ? vrIdsString.split(',').map(id => id.trim()).filter(id => id) : []; // Split, trim, remove empty
-                        params.language = document.getElementById('create-room-language').value.trim() || 'CHT'; // Add language, default CHT
-                    } else if (currentCommand === 'PAIR_USER') {
-                        params.roomId = document.getElementById('pair-user-roomid').value.trim();
-                        params.vrId = document.getElementById('pair-user-vrid').value.trim();
-                        params.userToken = document.getElementById('pair-user-token').value.trim();
-                        if (!params.roomId || !params.vrId || !params.userToken) {
-                            showToast('Room ID, VR ID, and User Token are required for PAIR_USER.', 'warning');
-                            return;
-                        }
-                    } else if (currentCommand === 'GET_SYSTEM_STATUS') {
-                        // No parameters needed
-                    } else if (currentCommand === 'PING') {
-                         // No parameters needed
-                    } else if (currentCommand === 'custom') {
-                        commandName = document.getElementById('custom-command').value.trim().toUpperCase();
-                        if (!commandName) {
-                            showToast('Please enter a command name for the custom command', 'warning');
-                            return;
-                        }
-                        // Get custom parameters
-                        const paramRows = document.querySelectorAll('#custom-parameters .custom-param-row');
-                        paramRows.forEach(row => {
-                            const nameInput = row.querySelector('.param-name');
-                            const valueInput = row.querySelector('.param-value');
-                            const name = nameInput.value.trim();
-                            const value = valueInput.value.trim();
-
-                            if (name) {
-                                // Basic type detection
-                                if (value.toLowerCase() === 'true') params[name] = true;
-                                else if (value.toLowerCase() === 'false') params[name] = false;
-                                else if (!isNaN(Number(value)) && value !== '') params[name] = Number(value);
-                                else {
-                                     // Try parsing as JSON array/object
-                                     try {
-                                         const parsedJson = JSON.parse(value);
-                                         // Check if it's an array or object (not just a stringified primitive)
-                                         if (typeof parsedJson === 'object' && parsedJson !== null) {
-                                             params[name] = parsedJson;
-                                         } else {
-                                             params[name] = value; // Treat as string if not object/array
-                                         }
-                                     } catch (e) {
-                                         params[name] = value; // Default to string if JSON parse fails
-                                     }
-                                }
-                            }
-                        });
-                    }
-
-                    // Log the request before sending
-                    logToUI(`Sending command: ${commandName}`, 'request', params);
-
-                    // Send the command
-                    if (sendCommandInternal(commandName, params)) {
-                         showToast(`Command "${commandName}" sent`, 'info');
-                    }
-
-                } catch (error) {
-                    console.error("Error preparing command:", error);
-                    showToast(`Error preparing command: ${error.message}`, 'error');
-                    logToUI(`Error preparing command ${commandName}: ${error}`, 'error');
+                    const data = JSON.parse(event.data);
+                    handleServerMessage(data);
+                } catch (e) {
+                    logMessage(`Failed to parse JSON: ${e}`, 'error');
                 }
-            }
-            
-            // Switch between command types in the UI
-            function switchCommand(command) {
-                currentCommand = command;
-                document.querySelectorAll('.parameters-form').forEach(form => form.style.display = 'none');
-                const formToShow = document.getElementById(`${command}-form`);
-                if (formToShow) formToShow.style.display = 'block';
-                commandButtons.forEach(btn => {
-                    btn.classList.toggle('active', btn.dataset.command === command);
-                });
-                 // Hide send button for GET_SYSTEM_STATUS as it has its own refresh button
-                sendCommandBtn.style.display = (command === 'GET_SYSTEM_STATUS') ? 'none' : 'block';
-            }
+            };
 
-            // Add parameter row to custom command form
-            function addParameterRow() {
-                const row = document.createElement('div');
-                row.className = 'custom-param-row';
-                row.innerHTML = `
-                    <input type="text" placeholder="Param name" class="param-name form-control">
-                    <input type="text" placeholder="Value (string, number, bool, JSON)" class="param-value form-control">
-                    <button type="button" class="remove-param btn">&times;</button>
-                `;
-                customParametersDiv.appendChild(row);
-                row.querySelector('.remove-param').addEventListener('click', () => row.remove());
-            }
+            websocket.onerror = (event) => {
+                logMessage(`WebSocket error: ${event.type || 'Unknown error'}`, 'error');
+                console.error("WebSocket Error: ", event);
+                updateConnectionStatus('error', 'Error');
+                websocket = null;
+            };
 
-            function clearLog() {
-                logArea.innerHTML = '<div class="log-entry log-info">Log cleared.</div>';
-            }
+            websocket.onclose = (event) => {
+                logMessage(`WebSocket connection closed. Code: ${event.code}, Reason: ${event.reason || 'N/A'}`, 'info');
+                updateConnectionStatus('disconnected', 'Disconnected');
+                websocket = null;
+                // Clear status displays on disconnect
+                agentStatusDiv.innerHTML = 'Agent status will appear here...';
+                roomStatusDiv.innerHTML = 'Room status will appear here...';
+            };
+        }
 
-            function requestSystemStatus() {
-                 logToUI('Requesting system status update...', 'request');
-                 if (sendCommandInternal('GET_SYSTEM_STATUS', {})) {
-                     showToast('Requested system status', 'info');
+        function disconnectWebSocket() {
+            if (websocket) {
+                logMessage('Disconnecting WebSocket...', 'info');
+                websocket.close();
+            } else {
+                 updateConnectionStatus('disconnected', 'Disconnected'); // Ensure UI updates if already null
+            }
+        }
+
+        function sendCommand(command, params = {}) {
+            if (!websocket || websocket.readyState !== WebSocket.OPEN) {
+                logMessage('WebSocket is not connected.', 'error');
+                return false; // Indicate failure
+            }
+            // Add originalCommand to params so server can echo it back if needed
+            const messageData = { command, ...params, originalCommand: command };
+            const message = JSON.stringify(messageData);
+            logMessage(`Sent: ${message}`, 'sent');
+            websocket.send(message);
+            return true; // Indicate success
+        }
+
+
+        function handleServerMessage(data) {
+            // Generic success/error logging from server response
+            if (data.status === 'error') {
+                logMessage(`Server Error: ${data.message || 'Unknown error'}`, 'error');
+            } else if (data.status === 'success' && data.message) {
+                 // Avoid logging generic success for status updates as it's too noisy
+                 if (data.originalCommand !== 'GET_SYSTEM_STATUS') {
+                    logMessage(`Server Success: ${data.message}`, 'info');
                  }
             }
-            
-            // --- Event Listeners ---
-            commandButtons.forEach(btn => btn.addEventListener('click', function() { switchCommand(this.dataset.command); }));
-            sendCommandBtn.addEventListener('click', sendSelectedCommand);
-            addParamBtn.addEventListener('click', addParameterRow);
-            clearLogBtn.addEventListener('click', clearLog);
-            refreshStatusBtn.addEventListener('click', requestSystemStatus); // Button within the GET_SYSTEM_STATUS form
-            manualRefreshStatusBtn.addEventListener('click', requestSystemStatus); // Button below the status display
 
-            // Initialize remove parameter buttons for any potentially pre-existing rows
-            document.querySelectorAll('.remove-param').forEach(btn => btn.addEventListener('click', function() { this.closest('.custom-param-row').remove(); }));
-            
-            // --- Initial Setup ---
-            switchCommand(currentCommand); // Set initial form visibility
-            connectWebSocket(); // Start connection attempt
+            // Specific handling for GET_SYSTEM_STATUS response or any message containing agent/room data
+            if (data.status === 'success' && data.agents !== undefined && data.rooms !== undefined) {
+                 updateStatusDisplays(data.agents, data.rooms);
+                 // Optional: Log that status was updated only if manually requested
+                 if (data.originalCommand === 'GET_SYSTEM_STATUS') {
+                    logMessage('System status updated.', 'info');
+                 }
+            } else if (data.command === "PONG" || (data.originalCommand === "PING" && data.status === "success")) {
+                logMessage(`Received PONG! ${data.message ? data.message : ''} ${data.data ? JSON.stringify(data.data) : ''}`, 'info');
+            } else if (data.originalCommand === "CALCULATE_SUM" && data.status === "success" && data.data && data.data.sum !== undefined) {
+                 logMessage(`Calculation Result: ${data.data.sum}`, 'info');
+            }
+
+            // After successful actions that change state, refresh the status
+            const refreshCommands = ["CREATE_ROOM", "PAIR_USER", "SET_CONTENT_LANGUAGE", "START_CONTENT", "CHANGE_CONTENT_STATUS", "RESTART_CONTENT_CLIENT", "CLOSE_CONTENT", "RELEASE_ROOM"];
+             // Check if the server response indicates success for one of the state-changing commands
+            if (data.status === 'success' && refreshCommands.includes(data.originalCommand)) {
+                 logMessage(`Refreshing status after ${data.originalCommand}...`, 'info');
+                 setTimeout(() => sendCommand('GET_SYSTEM_STATUS'), 300); // Refresh status after a short delay
+            }
+        }
+
+
+        function updateStatusDisplays(agents, rooms) {
+            // Update Agents Table
+            let agentHtml = '<table><thead><tr><th>VR ID</th><th>Status</th><th>Content</th><th>Room</th><th>State</th></tr></thead><tbody>';
+            if (agents && agents.length > 0) {
+                agents.forEach(agent => {
+                    agentHtml += `<tr>
+                        <td>${agent.vrId || 'N/A'}</td>
+                        <td>${agent.connectionStatus || 'N/A'}</td>
+                        <td>${agent.currentContent || 'N/A'}</td>
+                        <td>${agent.assignedRoom || 'N/A'}</td>
+                        <td>${agent.clientState || 'N/A'}</td>
+                    </tr>`;
+                });
+            } else {
+                agentHtml += '<tr><td colspan="5">No agents connected or data available.</td></tr>';
+            }
+            agentHtml += '</tbody></table>';
+            agentStatusDiv.innerHTML = agentHtml;
+
+            // Update Rooms Table
+            let roomHtml = '<table><thead><tr><th>Room ID</th><th>Status</th><th>Content Name</th><th>Content ID</th><th>Start Time</th><th>Assigned VRs</th><th>Users</th></tr></thead><tbody>';
+            if (rooms && rooms.length > 0) {
+                rooms.forEach(room => {
+                    const usersStr = (room.users || []).map(u => `${u.vrId}(${u.userToken || 'No Token'}, ${u.language || 'N/A'})`).join('<br>'); // Use <br> for multi-line
+                    const assignedVRsStr = (room.assignedVRs || []).join(', ');
+                    roomHtml += `<tr>
+                        <td>${room.roomId || 'N/A'}</td>
+                        <td>${room.status || 'N/A'}</td>
+                        <td>${room.contentName || 'N/A'}</td>
+                        <td>${room.contentId || 'N/A'}</td>
+                        <td>${room.startTime ? new Date(room.startTime).toLocaleString() : 'N/A'}</td>
+                        <td>${assignedVRsStr}</td>
+                        <td>${usersStr}</td>
+                    </tr>`;
+                });
+            } else {
+                roomHtml += '<tr><td colspan="7">No active rooms or data available.</td></tr>';
+            }
+            roomHtml += '</tbody></table>';
+            roomStatusDiv.innerHTML = roomHtml;
+        } // End of updateStatusDisplays function
+
+        // --- Event Listeners ---
+        connectBtn.addEventListener('click', connectWebSocket);
+        disconnectBtn.addEventListener('click', disconnectWebSocket);
+        clearLogBtn.addEventListener('click', () => { logsDiv.innerHTML = ''; });
+        refreshStatusBtn.addEventListener('click', () => sendCommand('GET_SYSTEM_STATUS'));
+
+        pingBtn.addEventListener('click', () => sendCommand('PING', { data: 'Hello from frontend!' }));
+
+        heartbeatBtn.addEventListener('click', () => {
+            const vrId = document.getElementById('heartbeat-vrid').value;
+            if (vrId) {
+                // Generate timestamp in seconds (as expected by Python handler)
+                const timestamp = Date.now() / 1000;
+                sendCommand('HEARTBEAT', { vrId, timestamp });
+            } else {
+                logMessage('VR ID is required for heartbeat.', 'error');
+            }
         });
+
+        calcSumBtn.addEventListener('click', () => {
+            const num1 = document.getElementById('calc-num1').value;
+            const num2 = document.getElementById('calc-num2').value;
+            // Basic validation
+            if (num1 !== '' && num2 !== '') {
+                 sendCommand('CALCULATE_SUM', { num1: parseFloat(num1), num2: parseFloat(num2) });
+            } else {
+                 logMessage('Please enter both numbers for calculation.', 'error');
+            }
+        });
+
+        createRoomBtn.addEventListener('click', () => {
+            const vrIdsRaw = document.getElementById('create-vrids').value;
+            const vrIds = vrIdsRaw.split(',').map(id => id.trim()).filter(id => id); // Split, trim, remove empty
+            const language = document.getElementById('create-language').value;
+            if (vrIds.length > 0 && language) {
+                if (sendCommand('CREATE_ROOM', { vrIds, language })) {
+                    // Optionally clear fields after sending
+                    // document.getElementById('create-vrids').value = '';
+                }
+            } else {
+                logMessage('VR IDs (comma-separated) and Language are required for creating a room.', 'error');
+            }
+        });
+
+        pairUserBtn.addEventListener('click', () => {
+            const roomId = document.getElementById('pair-roomid').value;
+            const vrId = document.getElementById('pair-vrid').value;
+            const userToken = document.getElementById('pair-token').value;
+            if (roomId && vrId && userToken) {
+                sendCommand('PAIR_USER', { roomId, vrId, userToken });
+            } else {
+                logMessage('Room ID, VR ID, and User Token are required for pairing.', 'error');
+            }
+        });
+
+        setLangBtn.addEventListener('click', () => {
+            const roomId = document.getElementById('lang-roomid').value;
+            const vrId = document.getElementById('lang-vrid').value;
+            const language = document.getElementById('lang-language').value;
+            if (roomId && vrId && language) {
+                sendCommand('SET_CONTENT_LANGUAGE', { roomId, vrId, language });
+            } else {
+                logMessage('Room ID, VR ID, and Language are required.', 'error');
+            }
+        });
+
+        startContentBtn.addEventListener('click', () => {
+            const roomId = document.getElementById('start-roomid').value;
+            const contentId = document.getElementById('start-contentid').value;
+            if (roomId && contentId) {
+                sendCommand('START_CONTENT', { roomId, contentId });
+            } else {
+                logMessage('Room ID and Content ID are required.', 'error');
+            }
+        });
+
+        changeStatusBtn.addEventListener('click', () => {
+            const roomId = document.getElementById('status-roomid').value;
+            const status = document.getElementById('status-value').value;
+            if (roomId && status) {
+                sendCommand('CHANGE_CONTENT_STATUS', { roomId, status });
+            } else {
+                logMessage('Room ID and Status are required.', 'error');
+            }
+        });
+
+        restartClientBtn.addEventListener('click', () => {
+            const roomId = document.getElementById('restart-roomid').value;
+            const vrId = document.getElementById('restart-vrid').value;
+            const contentId = document.getElementById('restart-contentid').value;
+            if (roomId && vrId && contentId) {
+                sendCommand('RESTART_CONTENT_CLIENT', { roomId, vrId, contentId });
+            } else {
+                logMessage('Room ID, VR ID, and Content ID are required.', 'error');
+            }
+        });
+
+        closeContentBtn.addEventListener('click', () => {
+            const roomId = document.getElementById('close-roomid').value;
+            if (roomId) {
+                sendCommand('CLOSE_CONTENT', { roomId });
+            } else {
+                logMessage('Room ID is required.', 'error');
+            }
+        });
+
+        releaseRoomBtn.addEventListener('click', () => {
+            const roomId = document.getElementById('release-roomid').value;
+            if (roomId) {
+                if (confirm(`Are you sure you want to release room ${roomId}? This action might disconnect clients and cannot be easily undone.`)) {
+                    sendCommand('RELEASE_ROOM', { roomId });
+                }
+            } else {
+                logMessage('Room ID is required.', 'error');
+            }
+        });
+
+        // Initial state & Auto-connect
+        updateConnectionStatus('disconnected', 'Disconnected');
+        connectWebSocket(); // Attempt to connect automatically on load
+
     </script>
 </body>
 </html>

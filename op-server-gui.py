@@ -23,6 +23,7 @@ from PyQt5.QtGui import QFont, QTextCursor
 connected_clients = []
 agents = []
 rooms = []
+content_server_ports = ["8001", "8002"] # 8001-8002 for content server
 
 # Custom logging handler that emits signals for log messages
 class QTextEditLogger(logging.Handler, QObject):
@@ -150,7 +151,7 @@ class WebSocketServerThread(QThread):
         # Execute handler
         try:
             # Pass the entire data dictionary as parameters
-            response_data = await handler(data) 
+            response_data = await handler(self, data) 
             
             # Ensure the handler returned the expected format
             if not isinstance(response_data, dict) or "status" not in response_data:
@@ -222,6 +223,15 @@ class WebSocketServerThread(QThread):
         # Clean up
         await self.stop_server()
 
+    async def start_content_server(self, content_server_port: str) -> None:
+        """Start the content server"""
+        try:
+            # Start the content server (dummy implementation)
+            logging.info(f"Starting content server on port {self.host}:{content_server_port}")
+        except Exception as e:
+            logging.error(f"Failed to start content server: {e}")
+            self.server_status.emit(False, f"Error: {str(e)}")
+
     def run(self):
         """QThread entry point"""
         asyncio.run(self.run_async())
@@ -230,55 +240,10 @@ class WebSocketServerThread(QThread):
         """Stop the thread"""
         self.is_running = False
 
-class Agent:
-    def __init__(self, vr_id: str):
-        self.vr_id = vr_id
-
-    def __repr__(self):
-        return f"Agent(agent_id={self.agent_id})"
-
 # --- Command Handlers ---
-
-async def ping_handler(params: Dict[str, Any]) -> Dict[str, Any]:
-    """Handles the 'ping' command."""
-    logging.info(f"Received ping command with params: {params}")
-
-    for c in connected_clients:
-        try:
-            #await c.send(json.dumps({"command": "start_client_handler", "message": "Ping received"}))
-            logging.info("Hello")
-        except Exception as e:
-            logging.error(f"Error sending ping response: {e}")
-
-    return {
-        "status": "success",
-        "message": "Pong!",
-        "data": {"received_params": params} 
-    }
-
-async def calculate_sum(params: Dict[str, Any]) -> Dict[str, Any]:
-    """Handles the 'calculate_sum' command."""
-    logging.info(f"Received calculate_sum command with params: {params}")
-    try:
-        num1 = float(params.get("num1", 0))
-        num2 = float(params.get("num2", 0))
-        total = num1 + num2
-        return {
-            "status": "success",
-            "message": f"Calculation successful.",
-            "data": {"sum": total}
-        }
-    except (ValueError, TypeError) as e:
-        logging.error(f"Invalid parameters for calculate_sum: {e}")
-        return {
-           "status": "error",
-           "message": f"Invalid parameters: {e}. Please provide numbers for 'num1' and 'num2'.",
-           "data": {}
-        }
-
-async def heartbeat(params: Dict[str, Any]) -> Dict[str, Any]:
+async def heartbeat(server_thread: WebSocketServerThread, params: Dict[str, Any]) -> Dict[str, Any]:
     logging.info(f"Received heartbeat command with params: {params}")
-    vrId = params.get("vrId", 0)
+    vrId = str(params.get("vrId", 0))
     timestamp = float(params.get("timestamp", 0))
 
     #taipei_tz = timezone(timedelta(hours=8))
@@ -320,7 +285,7 @@ async def heartbeat(params: Dict[str, Any]) -> Dict[str, Any]:
            "serverTime": server_time
         }
 
-async def client_status_update(params: Dict[str, Any]) -> Dict[str, Any]:
+async def client_status_update(server_thread: WebSocketServerThread, params: Dict[str, Any]) -> Dict[str, Any]:
     logging.info(f"Received client_status_update command with params: {params}")
     return {
         "status": "success",
@@ -329,7 +294,7 @@ async def client_status_update(params: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 # --- OP FRONTEND COMMANDS ---
-async def get_system_status(params: Dict[str, Any]) -> Dict[str, Any]:
+async def get_system_status(server_thread: WebSocketServerThread, params: Dict[str, Any]) -> Dict[str, Any]:
     logging.info(f"Received get_system_status command with params: {params}")
 
     result = {
@@ -341,17 +306,28 @@ async def get_system_status(params: Dict[str, Any]) -> Dict[str, Any]:
 
     return result
 
-async def create_room(params: Dict[str, Any]) -> Dict[str, Any]:
+async def create_room(server_thread: WebSocketServerThread, params: Dict[str, Any]) -> Dict[str, Any]:
     logging.info(f"Received create_room command with params: {params}")
     vrIds = params.get("vrIds", [])
-    langeuage = params.get("language")
-
+    language = str(params.get("language"))
     server_time = datetime.now(timezone.utc).isoformat(timespec='seconds')
+    
+    for csp in content_server_ports:
+        if csp not in [room["roomId"] for room in rooms]:
+            new_room_id = csp
+            break
+    else:
+        logging.error("No available content server ports")
+        return {
+            "status": "error",
+            "message": "No available content server ports",
+            "serverTime": server_time
+        }
 
     try:
         new_room = {
-            "roomId": "8001",
-            "status": "Idle",
+            "roomId": new_room_id,
+            "status": "Ready",
             "contentName": "VR體驗A",
             "contentId": "Content001",
             "startTime": server_time,
@@ -368,7 +344,7 @@ async def create_room(params: Dict[str, Any]) -> Dict[str, Any]:
                     new_user = {
                         "vrId": agent["vrId"],
                         "userToken": "",
-                        "language": langeuage
+                        "language": language
                     }
 
                     new_room["users"].append(new_user)
@@ -383,17 +359,17 @@ async def create_room(params: Dict[str, Any]) -> Dict[str, Any]:
             "assignedVRs": vrIds
         }
     except (ValueError, TypeError) as e:
-        logging.error(f"Invalid VrID")
+        logging.error(f"Invalid Room")
         return {
            "status": "error",
            "message": "create room fail",
            "serverTime": server_time
         }    
 
-async def pair_user(params: Dict[str, Any]) -> Dict[str, Any]:
+async def pair_user(server_thread: WebSocketServerThread, params: Dict[str, Any]) -> Dict[str, Any]:
     logging.info(f"Received pair_user command with params: {params}")
     roomId = str(params.get("roomId", 0))
-    vrId = params.get("vrId", 0)
+    vrId = str(params.get("vrId", 0))
     userToken = str(params.get("userToken", 0))
 
     try:
@@ -425,6 +401,270 @@ async def pair_user(params: Dict[str, Any]) -> Dict[str, Any]:
             "data": {}
         }
     
+async def set_content_language(server_thread: WebSocketServerThread, params: Dict[str, Any]) -> Dict[str, Any]:
+    logging.info(f"Received set_content_language command with params: {params}")
+    vrId = str(params.get("vrId", 0))
+    roomId = str(params.get("roomId", 0))
+    language = str(params.get("language", 0))
+
+    try:
+        for room in rooms:
+            if room["roomId"] == roomId:
+                for user in room["users"]:
+                    if user["vrId"] == vrId:
+                        user["language"] = language
+                        logging.info(f"Language set: {user}")
+                        return {
+                            "status": "success",
+                            "vrId": vrId,
+                            "language": language,
+                            "message": "Language set successfully"
+                        }
+        
+        logging.error(f"Room or VR ID not found")
+        return {
+            "status": "error",
+            "message": "Room or VR ID not found"
+        }
+    except (ValueError, TypeError) as e:
+        logging.error(f"Invalid parameters for set_content_language: {e}")
+        return {
+            "status": "error",
+            "message": f"Invalid parameters: {e}. Please provide valid 'roomId', 'vrId', and 'language'."
+        }
+
+async def start_content(server_thread: WebSocketServerThread, params: Dict[str, Any]) -> Dict[str, Any]:
+    logging.info(f"Received start_content command with params: {params}")
+    roomId = str(params.get("roomId", 0))
+    contentId = str(params.get("contentId", 0))
+
+    if not roomId:
+        return {"status": "error", "message": "Missing roomId."}
+
+    try:
+        for room in rooms:
+            if room["roomId"] == roomId:
+                room["status"] = "Idle"
+                room["contentId"] = contentId
+                logging.info(f"Content started: {room}")
+                #TODO: Notify server and client to start content
+                await server_thread.start_content_server(roomId)
+
+                return {
+                    "status": "success",
+                    "roomId": roomId,
+                    "contentId": contentId,
+                    "message": "Content started successfully"
+                }
+        
+        logging.error(f"Room not found")
+        return {
+            "status": "error",
+            "message": "Room not found"
+        }
+    except (ValueError, TypeError) as e:    
+        logging.error(f"Invalid parameters for start_content: {e}")
+        return {
+            "status": "error",
+            "message": f"Invalid parameters: {e}. Please provide valid 'roomId' and 'contentId'."
+        }
+
+async def change_content_status(server_thread: WebSocketServerThread, params: Dict[str, Any]) -> Dict[str, Any]:
+    logging.info(f"Received change_content_status command with params: {params}")
+    roomId = str(params.get("roomId", 0))
+    status = str(params.get("status", 0))
+
+    try:
+        for room in rooms:
+            if room["roomId"] == roomId:
+                room["status"] = status
+                logging.info(f"Content status changed: {room}")
+
+                #TODO: Notify server and client to change content status
+
+                return {
+                    "status": "success",
+                    "roomId": roomId,
+                    "message": "Content status changed successfully"
+                }
+    except (ValueError, TypeError) as e:
+        logging.error(f"Invalid parameters for change_content_status: {e}")
+        return {
+            "status": "error",
+            "message": f"Invalid parameters: {e}. Please provide valid 'roomId' and 'status'."
+        }
+
+async def restart_content_client(server_thread: WebSocketServerThread, params: Dict[str, Any]) -> Dict[str, Any]:
+    logging.info(f"Received restart_content_client command with params: {params}")
+    vrId = str(params.get("vrId", 0))
+    contentId = str(params.get("contentId", 0))
+    roomId = str(params.get("roomId", 0))
+
+    try:
+        for room in rooms:
+            if room["roomId"] == roomId:
+                for user in room["users"]:
+                    if user["vrId"] == vrId:
+                        #user["currentContent"] = contentId
+                        logging.info(f"Content client restarted: {user}")
+                        #TODO: Notify client to restart content client
+
+                        return {
+                            "status": "success",
+                            "vrId": vrId,
+                            "message": "Content client restarted successfully"
+                        }
+        
+        logging.error(f"Room or VR ID not found")
+        return {
+            "status": "error",
+            "message": "Room or VR ID not found"
+        }
+    except (ValueError, TypeError) as e:
+        logging.error(f"Invalid parameters for restart_content_client: {e}")
+        return {
+            "status": "error",
+            "message": f"Invalid parameters: {e}. Please provide valid 'roomId', 'vrId', and 'contentId'."
+        }
+
+async def close_content(server_thread: WebSocketServerThread, params: Dict[str, Any]) -> Dict[str, Any]:
+    logging.info(f"Received close_content command with params: {params}")
+    roomId = str(params.get("roomId", 0))
+
+    try:
+        for room in rooms:
+            if room["roomId"] == roomId:
+                room["status"] = "End"  
+                logging.info(f"Content closed: {room}")
+
+                #TODO: Notify server and client to close content
+
+                return {
+                    "status": "success",
+                    "roomId": roomId,
+                    "message": "Content closed successfully"
+                }
+    except (ValueError, TypeError) as e:
+        logging.error(f"Invalid parameters for close_content: {e}")
+        return {
+            "status": "error",
+            "message": f"Invalid parameters: {e}. Please provide valid 'roomId'."
+        }
+
+async def release_room(server_thread: WebSocketServerThread, params: Dict[str, Any]) -> Dict[str, Any]:
+    logging.info(f"Received release_room command with params: {params}")
+    roomId = str(params.get("roomId", 0))
+
+    try:
+        for room in rooms:
+            if room["roomId"] == roomId:
+                rooms.remove(room)
+                logging.info(f"Room released: {room}")
+
+                return {
+                    "status": "success",
+                    "message": "Room released successfully",
+                    "roomId": roomId,                    
+                }
+    except (ValueError, TypeError) as e:
+        logging.error(f"Invalid parameters for release_room: {e}")
+        return {
+            "status": "error",
+            "message": f"Invalid parameters: {e}. Please provide valid 'roomId'."
+        }
+
+# --- CONTENT SERVER COMMANDS ---
+async def content_server_hello(server_thread: WebSocketServerThread, params: Dict[str, Any]) -> Dict[str, Any]:
+    logging.info(f"Received content_server_hello command with params: {params}")
+    contentId = str(params.get("contentId", 0))
+    port = str(params.get("port", 0)) # port == roomId
+    status = str(params.get("status", 0))
+
+    try:
+        for room in rooms:
+            if room["roomId"] == port:
+                logging.info(f"Content server hello: {room}")
+
+                if room["contentId"] != contentId:
+                    logging.error(f"Content ID mismatch: {room['contentId']} != {contentId}")
+                    return {
+                        "status": "error",
+                        "message": "Content ID mismatch",
+                        "data": {}
+                    }
+
+                room["status"] = status
+                
+                return {
+                    "status": "success",
+                    "message": "Content server hello received",
+                    "roomId": room["roomId"],
+                    "users": room["users"]
+                }
+    except (ValueError, TypeError) as e:    
+        logging.error(f"Invalid parameters for content_server_hello: {e}")
+        return {
+            "status": "error",
+            "message": f"Invalid parameters: {e}. Please provide valid 'contentId', 'port', and 'contentIp'."
+        }
+
+async def content_status_update(server_thread: WebSocketServerThread, params: Dict[str, Any]) -> Dict[str, Any]:
+    logging.info(f"Received content_status_update command with params: {params}")
+    contentId = str(params.get("contentId", 0))
+    port = str(params.get("port", 0)) # port == roomId
+    status = str(params.get("status", 0))
+
+    try:
+        for room in rooms:
+            if room["roomId"] == port:
+                logging.info(f"Content status update: {room}")
+
+                if room["contentId"] != contentId:
+                    logging.error(f"Content ID mismatch: {room['contentId']} != {contentId}")
+                    return {
+                        "status": "error",
+                        "message": "Content ID mismatch"
+                    }
+
+                room["status"] = status
+                
+                return {"status": "success"}
+    except (ValueError, TypeError) as e:    
+        logging.error(f"Invalid parameters for content_status_update: {e}")
+        return {
+            "status": "error",
+            "message": f"Invalid parameters: {e}. Please provide valid 'contentId', 'port', and 'contentIp'."
+        }
+
+async def get_user_pairings(server_thread: WebSocketServerThread, params: Dict[str, Any]) -> Dict[str, Any]:
+    logging.info(f"Received get_user_pairings command with params: {params}")
+    contentId = str(params.get("contentId", 0))
+    port = str(params.get("port", 0)) # port == roomId
+
+    try:
+        for room in rooms:
+            if room["roomId"] == port:
+                logging.info(f"User pairings: {room}")
+
+                if room["contentId"] != contentId:
+                    logging.error(f"Content ID mismatch: {room['contentId']} != {contentId}")
+                    return {
+                        "status": "error",
+                        "message": "Content ID mismatch"
+                    }
+
+                return {
+                    "status": "success",
+                    "roonmId": room["roomId"],
+                    "users": room["users"]
+                }
+    except (ValueError, TypeError) as e:
+        logging.error(f"Invalid parameters for get_user_pairings: {e}")
+        return {
+            "status": "error",
+            "message": f"Invalid parameters: {e}. Please provide valid 'contentId', 'port', and 'contentIp'."
+        }
+
 class OpServerGUI(QMainWindow):
     def __init__(self):
         super().__init__()
@@ -576,25 +816,35 @@ class OpServerGUI(QMainWindow):
         # Create and start WebSocket server thread
         self.server_thread = WebSocketServerThread(host, port)
         
-        # Register command handlers
-        self.server_thread.register_command_handler("PING", ping_handler)
-        self.server_thread.register_command_handler("CALCULATE_SUM", calculate_sum)
-
         # op agent commands
         self.server_thread.register_command_handler("HEARTBEAT", heartbeat)
         self.server_thread.register_command_handler("CLIENT_STATUS_UPDATE", client_status_update)
+        #self.server_thread.register_command_handler("STATUS_UPDATE", status_update)
+        #self.server_thread.register_command_handler("USER_PAIRED", user_paired)
+        #self.server_thread.register_command_handler("START_CLIENT", start_client)
+        #self.server_thread.register_command_handler("RESTART_CONTENT_CLIENT", restart_content_client)
+        #self.server_thread.register_command_handler("CLOSE_CONTENT_CLIENT", close_content_client)
 
         # frontend commands
         self.server_thread.register_command_handler("GET_SYSTEM_STATUS", get_system_status)
         self.server_thread.register_command_handler("CREATE_ROOM", create_room)
         self.server_thread.register_command_handler("PAIR_USER", pair_user)
-        #self.server_thread.register_command_handler("SET_CONTENT_LANGUAGE", set_content_language)
-        #self.server_thread.register_command_handler("START_CONTENT", start_content)
-        #self.server_thread.register_command_handler("CHANGE_CONTENT_STATUS", change_content_status)
-        #self.server_thread.register_command_handler("RESTART_CONTENT_CLIENT", restart_content_client)
-        #self.server_thread.register_command_handler("CLOSE_CONTENT", close_content)
-        #self.server_thread.register_command_handler("RELEASE_ROOM", release_room)
+        self.server_thread.register_command_handler("SET_CONTENT_LANGUAGE", set_content_language)
+        self.server_thread.register_command_handler("START_CONTENT", start_content)
+        self.server_thread.register_command_handler("CHANGE_CONTENT_STATUS", change_content_status)
+        self.server_thread.register_command_handler("RESTART_CONTENT_CLIENT", restart_content_client)
+        self.server_thread.register_command_handler("CLOSE_CONTENT", close_content)
+        self.server_thread.register_command_handler("RELEASE_ROOM", release_room)
         #self.server_thread.register_command_handler("ROOM_STATUS_UPDATE", room_status_update)
+
+        # content server commands
+        self.server_thread.register_command_handler("CONTENT_SERVER_HELLO", content_server_hello)
+        self.server_thread.register_command_handler("CONTENT_STATUS_UPDATE", content_status_update)
+        #self.server_thread.register_command_handler("SET_CONTENT_STATUS", set_content_status)
+        self.server_thread.register_command_handler("GET_USER_PAIRINGS", get_user_pairings)
+        #self.server_thread.register_command_handler("USER_PAIRING_UPDATED", user_pairing_updated)
+        #self.server_thread.register_command_handler("CONTENT_LANGUAGE_SETTINGS", content_language_settings)
+        #self.server_thread.register_command_handler("CLOSE_CONTENT_SERVER", close_content_server)
 
         # Connect signals
         self.server_thread.server_status.connect(self.update_server_status)
