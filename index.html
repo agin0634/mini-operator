@@ -1,0 +1,666 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Operator System v1.0 - 中央控制介面</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        /* 使用 Inter 字體 */
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #111827; /* 深灰背景 */
+            color: #e5e7eb; /* 淺灰色文字 */
+        }
+        /* 自訂滾動條樣式 (可選) */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #1f2937; /* 滾動條軌道顏色 */
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #4b5563; /* 滾動條滑塊顏色 */
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #6b7280;
+        }
+        /* 狀態指示燈樣式 */
+        .status-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            display: inline-block;
+            margin-left: 8px;
+            box-shadow: 0 0 5px rgba(0, 0, 0, 0.5);
+        }
+        .status-connected {
+            background-color: #10b981; /* 綠色 */
+            box-shadow: 0 0 8px #10b981;
+        }
+        .status-disconnected {
+            background-color: #ef4444; /* 紅色 */
+            box-shadow: 0 0 8px #ef4444;
+        }
+        .status-connecting {
+            background-color: #f59e0b; /* 黃色 */
+            box-shadow: 0 0 8px #f59e0b;
+            animation: pulse 1.5s infinite;
+        }
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+        /* 卡片樣式 */
+        .card {
+            background-color: #1f2937; /* 深藍灰色背景 */
+            border-radius: 0.5rem; /* 圓角 */
+            padding: 1.5rem; /* 內邊距 */
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            margin-bottom: 1.5rem; /* 底部外邊距 */
+            border: 1px solid #374151; /* 邊框 */
+        }
+        /* 按鈕樣式 */
+        .btn {
+            padding: 0.5rem 1rem;
+            border-radius: 0.375rem;
+            font-weight: 500;
+            transition: background-color 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+            cursor: pointer;
+            border: none;
+        }
+        .btn-primary {
+            background-color: #3b82f6; /* 藍色 */
+            color: white;
+        }
+        .btn-primary:hover {
+            background-color: #2563eb;
+            box-shadow: 0 0 10px rgba(59, 130, 246, 0.5);
+        }
+        .btn-secondary {
+            background-color: #6b7280; /* 灰色 */
+            color: white;
+        }
+        .btn-secondary:hover {
+            background-color: #4b5563;
+        }
+        .btn-danger {
+            background-color: #ef4444; /* 紅色 */
+            color: white;
+        }
+        .btn-danger:hover {
+            background-color: #dc2626;
+        }
+        .btn-warning {
+            background-color: #f59e0b; /* 黃色 */
+            color: white;
+        }
+        .btn-warning:hover {
+            background-color: #d97706;
+        }
+        /* 表格樣式 */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        th, td {
+            padding: 0.75rem 1rem;
+            text-align: left;
+            border-bottom: 1px solid #374151; /* 分隔線顏色 */
+        }
+        th {
+            background-color: #374151; /* 表頭背景色 */
+            font-weight: 600;
+            color: #d1d5db; /* 表頭文字顏色 */
+        }
+        tbody tr:hover {
+            background-color: #374151; /* 滑鼠懸停行背景色 */
+        }
+        /* Modal 樣式 */
+        .modal {
+            display: none; /* 預設隱藏 */
+            position: fixed;
+            z-index: 50;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgba(0,0,0,0.6); /* 半透明背景 */
+        }
+        .modal-content {
+            background-color: #1f2937; /* Modal 背景色 */
+            margin: 10% auto;
+            padding: 2rem;
+            border: 1px solid #374151;
+            width: 80%;
+            max-width: 600px;
+            border-radius: 0.5rem;
+            color: #e5e7eb;
+        }
+        .modal-close {
+            color: #aaa;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        .modal-close:hover,
+        .modal-close:focus {
+            color: #e5e7eb;
+            text-decoration: none;
+        }
+    </style>
+</head>
+<body class="text-gray-200">
+
+    <nav class="bg-gray-900 p-4 shadow-md sticky top-0 z-40">
+        <div class="container mx-auto flex justify-between items-center">
+            <h1 class="text-xl font-bold text-white">Operator System v1.0</h1>
+            <div class="flex items-center">
+                <span class="mr-2 text-sm">伺服器狀態:</span>
+                <span id="server-status-text" class="text-sm mr-2">連線中...</span>
+                <span id="server-status-indicator" class="status-dot status-connecting"></span>
+            </div>
+        </div>
+    </nav>
+
+    <main class="container mx-auto p-4 md:p-6 lg:p-8">
+
+        <section id="agents-section" class="mb-8">
+            <h2 class="text-2xl font-semibold mb-4 border-b border-gray-700 pb-2">VR 主機監控 (Agents)</h2>
+            <div id="agents-list" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <div class="card agent-card" data-vrid="VR001">
+                    <h3 class="text-lg font-semibold mb-2">VR 主機 ID: <span class="font-mono">VR001</span></h3>
+                    <p class="text-sm mb-1">狀態: <span class="font-medium text-green-400">Connected</span></p>
+                    <p class="text-sm mb-1">內容: <span class="font-medium">體驗 A</span></p>
+                    <p class="text-sm mb-1">客戶端狀態: <span class="font-medium">playing</span></p>
+                    <p class="text-sm mb-1">房間 ID: <span class="font-medium">RoomA</span></p>
+                    <p class="text-sm mb-1">IP 位址: <span class="font-mono">192.168.1.101</span></p>
+                    <p class="text-sm mb-3">最後心跳: <span class="font-mono">2025-04-25 02:30:00</span></p>
+                    <div class="flex space-x-2 mt-4">
+                        <button class="btn btn-warning text-xs" onclick="sendRestartCommand('VR001')">重啟 Client</button>
+                        <button class="btn btn-danger text-xs" onclick="sendDisconnectCommand('VR001')">強制斷線</button>
+                        <button class="btn btn-secondary text-xs" onclick="viewAgentDetails('VR001')">詳細狀態</button>
+                    </div>
+                </div>
+                <div class="card agent-card" data-vrid="VR002">
+                    <h3 class="text-lg font-semibold mb-2">VR 主機 ID: <span class="font-mono">VR002</span></h3>
+                    <p class="text-sm mb-1">狀態: <span class="font-medium text-red-400">Disconnected</span></p>
+                    <p class="text-sm mb-1">內容: <span class="font-medium">N/A</span></p>
+                    <p class="text-sm mb-1">客戶端狀態: <span class="font-medium">idle</span></p>
+                    <p class="text-sm mb-1">房間 ID: <span class="font-medium">-</span></p>
+                    <p class="text-sm mb-1">IP 位址: <span class="font-mono">192.168.1.102</span></p>
+                    <p class="text-sm mb-3">最後心跳: <span class="font-mono">2025-04-25 02:25:00</span></p>
+                    <div class="flex space-x-2 mt-4">
+                        <button class="btn btn-warning text-xs" disabled>重啟 Client</button>
+                        <button class="btn btn-danger text-xs" disabled>強制斷線</button>
+                        <button class="btn btn-secondary text-xs" onclick="viewAgentDetails('VR002')">詳細狀態</button>
+                    </div>
+                </div>
+                 </div>
+            <p id="no-agents-message" class="text-gray-500 hidden">目前沒有連線的 VR 主機。</p>
+        </section>
+
+        <section id="rooms-section">
+            <div class="flex justify-between items-center mb-4 border-b border-gray-700 pb-2">
+                <h2 class="text-2xl font-semibold">房間管理 (Rooms)</h2>
+                <button id="create-room-btn" class="btn btn-primary">創建房間</button>
+            </div>
+            <div id="rooms-list" class="overflow-x-auto">
+                 <table class="min-w-full bg-gray-800 rounded-lg">
+                    <thead>
+                        <tr>
+                            <th>房間 ID</th>
+                            <th>狀態</th>
+                            <th>內容</th>
+                            <th>已分配 VR</th>
+                            <th>使用者 (已配對)</th>
+                            <th>開始時間</th>
+                            <th>操作</th>
+                        </tr>
+                    </thead>
+                    <tbody id="rooms-table-body">
+                        <tr data-roomid="8001">
+                            <td class="font-mono">8001</td>
+                            <td><span class="px-2 py-1 text-xs font-medium rounded-full bg-yellow-600 text-yellow-100">Preparing</span></td>
+                            <td>體驗 A (Content001)</td>
+                            <td><span class="font-mono">VR001</span></td>
+                            <td>1 / 1</td>
+                            <td class="font-mono">2025-04-25 02:32:00</td>
+                            <td class="space-x-1">
+                                <button class="btn btn-secondary btn-xs" onclick="viewRoomDetails('8001')">詳情</button>
+                                <button class="btn btn-danger btn-xs" onclick="sendDissolveCommand('8001')">解散</button>
+                            </td>
+                        </tr>
+                         <tr data-roomid="8002">
+                            <td class="font-mono">8002</td>
+                            <td><span class="px-2 py-1 text-xs font-medium rounded-full bg-gray-600 text-gray-100">Idle</span></td>
+                            <td>-</td>
+                            <td>-</td>
+                            <td>0 / 0</td>
+                            <td class="font-mono">-</td>
+                            <td class="space-x-1">
+                                <button class="btn btn-secondary btn-xs" onclick="viewRoomDetails('8002')">詳情</button>
+                                <button class="btn btn-danger btn-xs" onclick="sendDissolveCommand('8002')" disabled>解散</button>
+                            </td>
+                        </tr>
+                        </tbody>
+                </table>
+            </div>
+             <p id="no-rooms-message" class="text-gray-500 mt-4 hidden">目前沒有已創建的房間。</p>
+        </section>
+
+    </main>
+
+    <div id="create-room-modal" class="modal">
+        <div class="modal-content">
+            <span class="modal-close" onclick="closeModal('create-room-modal')">&times;</span>
+            <h3 class="text-xl font-semibold mb-6">創建新房間</h3>
+            <form id="create-room-form">
+                <div class="mb-4">
+                    <label for="select-vr-hosts" class="block text-sm font-medium mb-2">選擇 VR 主機 (可多選):</label>
+                    <select id="select-vr-hosts" multiple class="w-full p-2 border border-gray-600 rounded bg-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 h-32">
+                        <option value="VR001">VR001 (192.168.1.101) - idle</option>
+                        <option value="VR003">VR003 (192.168.1.103) - idle</option>
+                    </select>
+                    <p class="text-xs text-gray-400 mt-1">按住 Ctrl/Cmd 鍵可選擇多個。</p>
+                </div>
+                <div class="mb-4">
+                    <label for="select-content" class="block text-sm font-medium mb-2">選擇 VR 內容:</label>
+                    <select id="select-content" class="w-full p-2 border border-gray-600 rounded bg-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <option value="Content001">體驗 A</option>
+                        <option value="Content002">體驗 B - 互動版</option>
+                    </select>
+                </div>
+                <div class="mb-6">
+                    <label for="select-language" class="block text-sm font-medium mb-2">預設語言:</label>
+                    <select id="select-language" class="w-full p-2 border border-gray-600 rounded bg-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <option value="zh-TW">繁體中文 (zh-TW)</option>
+                        <option value="en-US">English (en-US)</option>
+                        <option value="ja-JP">日本語 (ja-JP)</option>
+                    </select>
+                </div>
+                <div class="flex justify-end space-x-3">
+                    <button type="button" class="btn btn-secondary" onclick="closeModal('create-room-modal')">取消</button>
+                    <button type="submit" class="btn btn-primary">確認創建</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        const wsUrl = `ws://127.0.0.1:8766`; // 從 op-server-gui.py 讀取或設定
+        let socket = null;
+        let connectInterval = null;
+        let systemStatusInterval = null;
+
+        // --- DOM 元素 ---
+        const serverStatusIndicator = document.getElementById('server-status-indicator');
+        const serverStatusText = document.getElementById('server-status-text');
+        const agentsListContainer = document.getElementById('agents-list');
+        const noAgentsMessage = document.getElementById('no-agents-message');
+        const roomsTableBody = document.getElementById('rooms-table-body');
+        const noRoomsMessage = document.getElementById('no-rooms-message');
+        const createRoomModal = document.getElementById('create-room-modal');
+        const createRoomBtn = document.getElementById('create-room-btn');
+        const createRoomForm = document.getElementById('create-room-form');
+        const selectVrHosts = document.getElementById('select-vr-hosts');
+        const selectContent = document.getElementById('select-content');
+        const selectLanguage = document.getElementById('select-language');
+
+
+        // --- WebSocket 功能 ---
+
+        function connectWebSocket() {
+            console.log(`嘗試連接 WebSocket: ${wsUrl}`);
+            serverStatusText.textContent = '連線中...';
+            serverStatusIndicator.className = 'status-dot status-connecting';
+
+            socket = new WebSocket(wsUrl);
+
+            socket.onopen = () => {
+                console.log('WebSocket 連線成功');
+                serverStatusText.textContent = '已連線';
+                serverStatusIndicator.className = 'status-dot status-connected';
+                if (connectInterval) {
+                    clearInterval(connectInterval);
+                    connectInterval = null;
+                }
+                
+                // 連線成功後立即發送心跳
+                sendHeartbeat();
+                
+                // 設置定期心跳
+                if (!heartbeatInterval) {
+                    heartbeatInterval = setInterval(sendHeartbeat, 30000); // 每30秒發送一次心跳
+                }
+                
+                // 連線成功後，定期請求系統狀態
+                requestSystemStatus(); // 立即請求一次
+                if (!systemStatusInterval) {
+                    systemStatusInterval = setInterval(requestSystemStatus, 5000); // 每 5 秒請求一次
+                }
+            };
+
+            socket.onmessage = (event) => {
+                console.log('收到訊息:', event.data);
+                try {
+                    const message = JSON.parse(event.data);
+                    handleWebSocketMessage(message);
+                } catch (error) {
+                    console.error('處理訊息錯誤:', error);
+                }
+            };
+
+            socket.onerror = (error) => {
+                console.error('WebSocket 錯誤:', error);
+                // 可以在這裡添加更詳細的錯誤處理
+            };
+
+            socket.onclose = (event) => {
+                console.log('WebSocket 連線關閉:', event.code, event.reason);
+                serverStatusText.textContent = '已斷線';
+                serverStatusIndicator.className = 'status-dot status-disconnected';
+                socket = null;
+                
+                // 停止所有定時任務
+                if (systemStatusInterval) {
+                    clearInterval(systemStatusInterval);
+                    systemStatusInterval = null;
+                }
+                
+                if (heartbeatInterval) {
+                    clearInterval(heartbeatInterval);
+                    heartbeatInterval = null;
+                }
+                
+                // 清除顯示資料
+                clearAgentList();
+                clearRoomList();
+                
+                // 嘗試重新連線
+                if (!connectInterval) {
+                    console.log('5 秒後嘗試重新連線...');
+                    connectInterval = setInterval(connectWebSocket, 5000);
+                }
+            };
+        }
+
+        // 發送心跳訊息
+        function sendHeartbeat() {
+            sendMessage('HEARTBEAT');
+        }
+
+        function sendMessage(command, data = {}) {
+            if (socket && socket.readyState === WebSocket.OPEN) {
+                const message = JSON.stringify({ command, ...data });
+                console.log('發送訊息:', message);
+                socket.send(message);
+            } else {
+                console.error('WebSocket 未連接，無法發送訊息');
+                if (command !== 'HEARTBEAT') { // 心跳失敗不顯示提示，避免干擾用戶
+                    alert('與伺服器的連線已中斷，請稍後再試。');
+                }
+            }
+        }
+
+        // --- UI 更新功能 ---
+
+        function updateAgentList(agents) {
+            agentsListContainer.innerHTML = ''; // 清空現有列表
+            if (!agents || agents.length === 0) {
+                noAgentsMessage.classList.remove('hidden');
+                return;
+            }
+
+            noAgentsMessage.classList.add('hidden');
+            agents.forEach(agent => {
+                const isConnected = agent.connectionStatus === 'Connected';
+                const statusColor = isConnected ? 'text-green-400' : 'text-red-400';
+                const lastHeartbeat = agent.lastHeartbeat ? new Date(agent.lastHeartbeat).toLocaleString('zh-TW') : 'N/A'; // 假設後端提供 lastHeartbeat
+
+                const card = `
+                <div class="card agent-card" data-vrid="${agent.vrId}">
+                    <h3 class="text-lg font-semibold mb-2">VR 主機 ID: <span class="font-mono">${agent.vrId}</span></h3>
+                    <p class="text-sm mb-1">狀態: <span class="font-medium ${statusColor}">${agent.connectionStatus || 'Unknown'}</span></p>
+                    <p class="text-sm mb-1">內容: <span class="font-medium">${agent.currentContent || 'N/A'}</span></p>
+                    <p class="text-sm mb-1">客戶端狀態: <span class="font-medium">${agent.clientState || 'N/A'}</span></p>
+                    <p class="text-sm mb-1">房間 ID: <span class="font-medium">${agent.assignedRoom || '-'}</span></p>
+                    <p class="text-sm mb-1">IP 位址: <span class="font-mono">${agent.ipAddress || 'N/A'}</span></p> <p class="text-sm mb-3">最後心跳: <span class="font-mono">${lastHeartbeat}</span></p>
+                    <div class="flex space-x-2 mt-4">
+                        <button class="btn btn-warning text-xs" onclick="sendRestartCommand('${agent.vrId}')" ${!isConnected ? 'disabled' : ''}>重啟 Client</button>
+                        <button class="btn btn-danger text-xs" onclick="sendDisconnectCommand('${agent.vrId}')" ${!isConnected ? 'disabled' : ''}>強制斷線</button>
+                        <button class="btn btn-secondary text-xs" onclick="viewAgentDetails('${agent.vrId}')">詳細狀態</button>
+                    </div>
+                </div>`;
+                agentsListContainer.innerHTML += card;
+            });
+            // 更新創建房間 Modal 中的 VR 選項
+            updateVrHostOptions(agents);
+        }
+
+        function clearAgentList() {
+             agentsListContainer.innerHTML = '';
+             noAgentsMessage.classList.remove('hidden');
+             updateVrHostOptions([]); // 清空 Modal 選項
+        }
+
+        function updateRoomList(rooms) {
+            roomsTableBody.innerHTML = ''; // 清空現有列表
+             if (!rooms || rooms.length === 0) {
+                noRoomsMessage.classList.remove('hidden');
+                return;
+            }
+            noRoomsMessage.classList.add('hidden');
+
+            rooms.forEach(room => {
+                const assignedVRs = room.assignedVRs ? room.assignedVRs.join(', ') : '-';
+                const userCount = room.users ? room.users.length : 0;
+                const pairedUserCount = room.users ? room.users.filter(u => u.userToken).length : 0; // 計算已配對數量
+                const startTime = room.startTime ? new Date(room.startTime).toLocaleString('zh-TW') : '-';
+
+                let statusBadge;
+                switch (room.status) {
+                    case 'Ready': statusBadge = '<span class="px-2 py-1 text-xs font-medium rounded-full bg-blue-600 text-blue-100">Ready</span>'; break;
+                    case 'Preparing': statusBadge = '<span class="px-2 py-1 text-xs font-medium rounded-full bg-yellow-600 text-yellow-100">Preparing</span>'; break;
+                    case 'Running': statusBadge = '<span class="px-2 py-1 text-xs font-medium rounded-full bg-green-600 text-green-100">Running</span>'; break;
+                    case 'Finished': statusBadge = '<span class="px-2 py-1 text-xs font-medium rounded-full bg-gray-600 text-gray-100">Finished</span>'; break;
+                    case 'Error': statusBadge = '<span class="px-2 py-1 text-xs font-medium rounded-full bg-red-600 text-red-100">Error</span>'; break;
+                    case 'Idle': statusBadge = '<span class="px-2 py-1 text-xs font-medium rounded-full bg-purple-600 text-purple-100">Idle</span>'; break; // Added Idle state
+                    case 'End': statusBadge = '<span class="px-2 py-1 text-xs font-medium rounded-full bg-pink-600 text-pink-100">End</span>'; break; // Added End state
+                    default: statusBadge = `<span class="px-2 py-1 text-xs font-medium rounded-full bg-gray-500 text-gray-100">${room.status || 'Unknown'}</span>`;
+                }
+
+                const row = `
+                <tr data-roomid="${room.roomId}">
+                    <td class="font-mono">${room.roomId}</td>
+                    <td>${statusBadge}</td>
+                    <td>${room.contentName || 'N/A'} (${room.contentId || 'N/A'})</td>
+                    <td><span class="font-mono">${assignedVRs}</span></td>
+                    <td>${pairedUserCount} / ${userCount}</td>
+                    <td class="font-mono">${startTime}</td>
+                    <td class="space-x-1">
+                        <button class="btn btn-secondary btn-xs" onclick="viewRoomDetails('${room.roomId}')">詳情</button>
+                        <button class="btn btn-danger btn-xs" onclick="sendDissolveCommand('${room.roomId}')" ${room.status === 'Finished' || room.status === 'Error' || room.status === 'End' ? '' : 'disabled'}>解散</button>
+                         <button class="btn btn-primary btn-xs" onclick="sendStartContentCommand('${room.roomId}', '${room.contentId}')" ${room.status === 'Ready' || room.status === 'Idle' ? '' : 'disabled'}>開始內容</button>
+                         <button class="btn btn-warning btn-xs" onclick="sendCloseContentCommand('${room.roomId}')" ${room.status === 'Running' ? '' : 'disabled'}>結束內容</button>
+                    </td>
+                </tr>`;
+                roomsTableBody.innerHTML += row;
+            });
+        }
+
+        function clearRoomList() {
+             roomsTableBody.innerHTML = '';
+             noRoomsMessage.classList.remove('hidden');
+        }
+
+        function updateVrHostOptions(agents) {
+            selectVrHosts.innerHTML = ''; // 清空現有選項
+            const availableAgents = agents.filter(agent => agent.connectionStatus === 'Connected' && !agent.assignedRoom); // 只顯示已連線且未分配房間的
+
+            if (availableAgents.length === 0) {
+                 selectVrHosts.innerHTML = '<option disabled>沒有可用的 VR 主機</option>';
+                 return;
+            }
+
+            availableAgents.forEach(agent => {
+                const option = document.createElement('option');
+                option.value = agent.vrId;
+                option.textContent = `${agent.vrId} (${agent.ipAddress || 'N/A'}) - ${agent.clientState || 'idle'}`;
+                selectVrHosts.appendChild(option);
+            });
+        }
+
+        // --- Modal 控制 ---
+        function openModal(modalId) {
+            const modal = document.getElementById(modalId);
+            if (modal) {
+                modal.style.display = 'block';
+            }
+        }
+
+        function closeModal(modalId) {
+            const modal = document.getElementById(modalId);
+            if (modal) {
+                modal.style.display = 'none';
+            }
+        }
+
+        // --- 發送指令 ---
+        function requestSystemStatus() {
+            sendMessage('GET_SYSTEM_STATUS');
+        }
+
+        function sendRestartCommand(vrId) {
+            if (confirm(`確定要重啟 VR 主機 ${vrId} 的客戶端程式嗎？`)) {
+                console.log(`發送 RESTART_CONTENT_CLIENT 指令給 ${vrId}`);
+                // 注意：op-server-gui.py 中的 RESTART_CONTENT_CLIENT 需要 roomId 和 contentId
+                // 這裡需要先獲取對應的 roomId 和 contentId，或者修改後端 API
+                alert(`模擬發送重啟指令給 ${vrId} (需要後端實現)`);
+                // sendMessage('RESTART_CONTENT_CLIENT', { vrId: vrId, roomId: '...', contentId: '...' });
+            }
+        }
+
+        function sendDisconnectCommand(vrId) {
+             if (confirm(`確定要強制斷開 VR 主機 ${vrId} 的連線嗎？`)) {
+                console.log(`發送強制斷線指令給 ${vrId}`);
+                // 這個功能需要在後端實現，例如關閉對應的 WebSocket 連線
+                 alert(`模擬發送強制斷線指令給 ${vrId} (需要後端實現)`);
+                // sendMessage('FORCE_DISCONNECT_CLIENT', { vrId: vrId }); // 假設後端有此指令
+            }
+        }
+
+         function sendDissolveCommand(roomId) {
+             if (confirm(`確定要解散房間 ${roomId} 嗎？這將釋放所有 VR 主機。`)) {
+                console.log(`發送 RELEASE_ROOM 指令給 ${roomId}`);
+                sendMessage('RELEASE_ROOM', { roomId: roomId });
+            }
+        }
+
+        function sendStartContentCommand(roomId, contentId) {
+             if (confirm(`確定要在房間 ${roomId} 開始內容 ${contentId} 嗎？`)) {
+                console.log(`發送 START_CONTENT 指令給 ${roomId}`);
+                sendMessage('START_CONTENT', { roomId: roomId, contentId: contentId });
+            }
+        }
+
+        function sendCloseContentCommand(roomId) {
+             if (confirm(`確定要結束房間 ${roomId} 的內容嗎？`)) {
+                console.log(`發送 CLOSE_CONTENT 指令給 ${roomId}`);
+                sendMessage('CLOSE_CONTENT', { roomId: roomId });
+            }
+        }
+
+        function viewAgentDetails(vrId) {
+            console.log(`查看 Agent ${vrId} 的詳細狀態`);
+            // 可以在這裡彈出一個新的 Modal 或導向到詳細頁面
+            alert(`顯示 ${vrId} 的詳細狀態 (待實現)`);
+        }
+
+        function viewRoomDetails(roomId) {
+            console.log(`查看 Room ${roomId} 的詳細狀態`);
+            // 可以在這裡彈出一個新的 Modal 或導向到詳細頁面
+            alert(`顯示房間 ${roomId} 的詳細狀態 (待實現)`);
+        }
+
+
+        // --- 事件監聽器 ---
+        createRoomBtn.addEventListener('click', () => {
+            // 在打開 Modal 前確保 VR 選項是更新的
+            requestSystemStatus(); // 可能會稍微延遲顯示，但確保資料最新
+            openModal('create-room-modal');
+        });
+
+        createRoomForm.addEventListener('submit', (event) => {
+            event.preventDefault(); // 阻止表單預設提交行為
+
+            const selectedVrIds = Array.from(selectVrHosts.selectedOptions).map(option => option.value);
+            const selectedContentId = selectContent.value; // 假設 value 是 contentId
+            const selectedLanguage = selectLanguage.value;
+
+            if (selectedVrIds.length === 0) {
+                alert('請至少選擇一個 VR 主機。');
+                return;
+            }
+            if (!selectedContentId) {
+                 alert('請選擇一個 VR 內容。');
+                return;
+            }
+
+            console.log('創建房間參數:', {
+                vrIds: selectedVrIds,
+                contentId: selectedContentId, // 注意：後端 CREATE_ROOM 目前不直接接收 contentId，但可能需要
+                language: selectedLanguage
+            });
+
+            // 發送 CREATE_ROOM 指令
+            sendMessage('CREATE_ROOM', {
+                 vrIds: selectedVrIds,
+                 language: selectedLanguage
+                 // 如果後端需要 contentId，可以在這裡加入
+                 // contentId: selectedContentId
+            });
+
+            // 創建成功後，後端應回傳訊息，由 handleWebSocketMessage 處理關閉 modal 和刷新列表
+            // closeModal('create-room-modal'); // 暫時先在這裡關閉
+            // requestSystemStatus(); // 立即請求更新 (更好的做法是等待後端確認)
+        });
+
+
+        // --- 初始化 ---
+        document.addEventListener('DOMContentLoaded', () => {
+            // 頁面載入時立即嘗試連接
+            connectWebSocket();
+
+            // 關閉 Modal 的點擊事件 (點擊 Modal 外部區域)
+            window.onclick = function(event) {
+                if (event.target == createRoomModal) {
+                    closeModal('create-room-modal');
+                }
+                // 可以為其他 Modal 添加類似邏輯
+            }
+        });
+
+        // 在頁面卸載時清理資源
+        window.addEventListener('beforeunload', () => {
+            // 清理所有計時器
+            if (connectInterval) clearInterval(connectInterval);
+            if (systemStatusInterval) clearInterval(systemStatusInterval);
+            if (heartbeatInterval) clearInterval(heartbeatInterval);
+            
+            // 關閉 WebSocket 連接
+            if (socket && socket.readyState === WebSocket.OPEN) {
+                socket.close();
+            }
+        });
+
+    </script>
+</body>
+</html>
