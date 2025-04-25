@@ -273,7 +273,14 @@
             websocket.onopen = () => {
                 logMessage('WebSocket connection established.', 'info');
                 updateConnectionStatus('connected', 'Connected');
-                sendCommand('GET_SYSTEM_STATUS', {}); // Request initial status on connect
+
+                // Send identification message to the server
+                const identificationMsg = JSON.stringify({ type: "frontend", id: "frontend001" });
+                logMessage(`Sending identification: ${identificationMsg}`, 'sent');
+                websocket.send(identificationMsg);
+
+                // Request initial system status after identifying
+                sendCommand('GET_SYSTEM_STATUS', {});
             };
 
             websocket.onmessage = (event) => {
