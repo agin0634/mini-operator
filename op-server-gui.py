@@ -30,7 +30,7 @@ connected_clients = {
 }
 agents = []
 rooms = []
-content_server_ports = ["8001", "8002"] # 8001-8002 for content server
+content_server_ports = ["50100", "50200"] # 8001-8002 for content server
 
 # Custom logging handler that emits signals for log messages
 class QTextEditLogger(logging.Handler, QObject):
@@ -258,7 +258,7 @@ class WebSocketServerThread(QThread):
             elif contentId == "Content002":
                 exe_path = r""
 
-            proc = subprocess.Popen([exe_path, "-log", f"-port={content_server_port}"])
+            proc = subprocess.Popen([exe_path, "-log", f"-port={content_server_port}", f"-opserver={self.host}:{self.port}"])
 
             time.sleep(2)
             if proc.poll() is not None:
@@ -510,13 +510,20 @@ async def start_content(server_thread: WebSocketServerThread, client_websocket: 
         for room in rooms:
             if room["roomId"] == roomId:
                 room["contentId"] = contentId
+
+                if room["status"] != "Ready":
+                    logging.error(f"Room is not ready: {room}")
+                    return {
+                        "status": "error",
+                        "message": "Room is not ready"
+                    }
+
                 logging.info(f"Content started: {room}")
-                #TODO: Notify server and client to start content
-                is_server_on = await server_thread.start_content_server(roomId)
+                is_server_on = await server_thread.start_content_server(roomId, contentId)
 
                 if is_server_on:
                     logging.info(f"Content server started on port {roomId}")
-                    room["status"] = "Idle"
+                    #room["status"] = "Idle"
                     return {
                         "status": "success",
                         "roomId": roomId,
@@ -616,6 +623,7 @@ async def close_content(server_thread: WebSocketServerThread, client_websocket: 
                 if is_server_off:
                     logging.info(f"Content server closed on port {roomId}")
                     room["status"] = "Ready"
+
                     return {
                         "status": "success",
                         "roomId": roomId,
@@ -670,8 +678,7 @@ async def content_server_hello(server_thread: WebSocketServerThread, client_webs
                     logging.error(f"Content ID mismatch: {room['contentId']} != {contentId}")
                     return {
                         "status": "error",
-                        "message": "Content ID mismatch",
-                        "data": {}
+                        "message": "Content ID mismatch"
                     }
                 
                 logging.info(f"Content server hello: {room}")
@@ -680,6 +687,7 @@ async def content_server_hello(server_thread: WebSocketServerThread, client_webs
                 return {
                     "status": "success",
                     "message": "Content server hello received",
+                    "command": "CONTENT_SERVER_HELLO_CALLBACK",
                     "roomId": room["roomId"],
                     "users": room["users"]
                 }
