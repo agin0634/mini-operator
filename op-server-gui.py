@@ -1,7 +1,3 @@
-#!/usr/bin/env python3
-# op-server-gui.py
-# WebSocket server with PyQt GUI interface
-
 import asyncio
 import json
 import logging
@@ -13,7 +9,6 @@ import subprocess
 from datetime import datetime, timezone, timedelta
 from typing import Dict, Callable, Any, Optional, Set
 from dark_theme import dark_stylesheet
-
 from PyQt5.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, 
                            QHBoxLayout, QLabel, QLineEdit, QPushButton, 
                            QTextEdit, QSpinBox, QGroupBox, QStatusBar, 
@@ -102,6 +97,7 @@ class WebSocketServerThread(QThread):
             client_type = identity.get("type")
             client_id = identity.get("id")
 
+            global connected_clients
             if client_type not in connected_clients:
                 error_response = {
                         "status": "error",
@@ -254,7 +250,7 @@ class WebSocketServerThread(QThread):
             logging.info(f"Starting content server on port {self.host}:{content_server_port}")
 
             if contentId == "Content001": #TODO: config parameter
-                exe_path = r"D:\PerforceProjects\202401_VRNorthernCity\VRNorthernCity_Source\PackageGame\WindowsServer\VRNorthernCityServer.exe"
+                exe_path = r"D:\PerforceProjects\202401_VRNorthernCity\VRNorthernCity_Source\PackageGame\WindowsServer_0502\VRNorthernCityServer.exe"
             elif contentId == "Content002":
                 exe_path = r""
 
@@ -309,6 +305,7 @@ async def heartbeat(server_thread: WebSocketServerThread, client_websocket: webs
     logging.info(f"Received heartbeat command with params: {params}")
     vrId = str(params.get("vrId", 0))
     timestamp = float(params.get("timestamp", 0))
+    global agents
 
     #taipei_tz = timezone(timedelta(hours=8))
     dt = datetime.fromtimestamp(timestamp)
@@ -364,6 +361,7 @@ async def get_system_status(server_thread: WebSocketServerThread, client_websock
 
     result = {
     "status": "success",
+    "command": "GET_SYSTEM_STATUS_CALLBACK",
     "agents": agents,
     "rooms": rooms
     }   
@@ -376,6 +374,7 @@ async def create_room(server_thread: WebSocketServerThread, client_websocket: we
     vrIds = params.get("vrIds", [])
     language = str(params.get("language"))
     server_time = datetime.now(timezone.utc).isoformat(timespec='seconds')
+    global content_server_ports, rooms, agents
     
     for csp in content_server_ports:
         if csp not in [room["roomId"] for room in rooms]:
@@ -420,6 +419,7 @@ async def create_room(server_thread: WebSocketServerThread, client_websocket: we
 
         return {
             "status": "success",
+            "command": "CREATE_ROOM_CALLBACK",
             "roomId": "8001",
             "assignedVRs": vrIds
         }
@@ -436,6 +436,7 @@ async def pair_user(server_thread: WebSocketServerThread, client_websocket: webs
     roomId = str(params.get("roomId", 0))
     vrId = str(params.get("vrId", 0))
     userToken = str(params.get("userToken", 0))
+    global rooms
 
     try:
         for room in rooms:
@@ -446,7 +447,7 @@ async def pair_user(server_thread: WebSocketServerThread, client_websocket: webs
                         logging.info(f"User paired: {user}")
                         return {
                             "status": "success",
-                            "message": "User paired successfully",
+                            "command": "PAIR_USER_CALLBACK",
                             "roomId": roomId,
                             "vrId": vrId,
                             "userToken": userToken
@@ -455,15 +456,13 @@ async def pair_user(server_thread: WebSocketServerThread, client_websocket: webs
         logging.error(f"Room or VR ID not found")
         return {
             "status": "error",
-            "message": "Room or VR ID not found",
-            "data": {}
+            "message": "Room or VR ID not found"
         }
     except (ValueError, TypeError) as e:
         logging.error(f"Invalid parameters for pair_user: {e}")
         return {
             "status": "error",
-            "message": f"Invalid parameters: {e}. Please provide valid 'roomId', 'vrId', and 'userToken'.",
-            "data": {}
+            "message": f"Invalid parameters: {e}. Please provide valid 'roomId', 'vrId', and 'userToken'."
         }
     
 async def set_content_language(server_thread: WebSocketServerThread, client_websocket: websockets.WebSocketServerProtocol, params: Dict[str, Any]) -> Dict[str, Any]:
@@ -481,6 +480,7 @@ async def set_content_language(server_thread: WebSocketServerThread, client_webs
                         logging.info(f"Language set: {user}")
                         return {
                             "status": "success",
+                            "command": "SET_CONTENT_LANGUAGE_CALLBACK",
                             "vrId": vrId,
                             "language": language,
                             "message": "Language set successfully"
@@ -511,6 +511,17 @@ async def start_content(server_thread: WebSocketServerThread, client_websocket: 
             if room["roomId"] == roomId:
                 room["contentId"] = contentId
 
+                # DEBUGGING
+                '''
+                return {
+                        "status": "success",
+                        "command": "START_CONTENT_CALLBACK",
+                        "roomId": roomId,
+                        "contentId": contentId,
+                        "message": "Content started successfully"
+                    }
+                '''
+
                 if room["status"] != "Ready":
                     logging.error(f"Room is not ready: {room}")
                     return {
@@ -526,6 +537,7 @@ async def start_content(server_thread: WebSocketServerThread, client_websocket: 
                     #room["status"] = "Idle"
                     return {
                         "status": "success",
+                        "command": "START_CONTENT_CALLBACK",
                         "roomId": roomId,
                         "contentId": contentId,
                         "message": "Content started successfully"
@@ -553,6 +565,7 @@ async def change_content_status(server_thread: WebSocketServerThread, client_web
     logging.info(f"Received change_content_status command with params: {params}")
     roomId = str(params.get("roomId", 0))
     status = str(params.get("status", 0))
+    global rooms
 
     try:
         for room in rooms:
@@ -564,6 +577,7 @@ async def change_content_status(server_thread: WebSocketServerThread, client_web
 
                 return {
                     "status": "success",
+                    "command": "CHANGE_CONTENT_STATUS_CALLBACK",
                     "roomId": roomId,
                     "message": "Content status changed successfully"
                 }
@@ -579,6 +593,7 @@ async def restart_content_client(server_thread: WebSocketServerThread, client_we
     vrId = str(params.get("vrId", 0))
     contentId = str(params.get("contentId", 0))
     roomId = str(params.get("roomId", 0))
+    global rooms
 
     try:
         for room in rooms:
@@ -591,6 +606,7 @@ async def restart_content_client(server_thread: WebSocketServerThread, client_we
 
                         return {
                             "status": "success",
+                            "command": "RESTART_CONTENT_CLIENT_CALLBACK",
                             "vrId": vrId,
                             "message": "Content client restarted successfully"
                         }
@@ -610,6 +626,7 @@ async def restart_content_client(server_thread: WebSocketServerThread, client_we
 async def close_content(server_thread: WebSocketServerThread, client_websocket: websockets.WebSocketServerProtocol, params: Dict[str, Any]) -> Dict[str, Any]:
     logging.info(f"Received close_content command with params: {params}")
     roomId = str(params.get("roomId", 0))
+    global rooms
 
     try:
         for room in rooms:
@@ -626,6 +643,7 @@ async def close_content(server_thread: WebSocketServerThread, client_websocket: 
 
                     return {
                         "status": "success",
+                        "command": "CLOSE_CONTENT_CALLBACK",
                         "roomId": roomId,
                         "message": "Content closed successfully"
                     }
@@ -645,6 +663,7 @@ async def close_content(server_thread: WebSocketServerThread, client_websocket: 
 async def release_room(server_thread: WebSocketServerThread, client_websocket: websockets.WebSocketServerProtocol, params: Dict[str, Any]) -> Dict[str, Any]:
     logging.info(f"Received release_room command with params: {params}")
     roomId = str(params.get("roomId", 0))
+    global rooms
 
     try:
         for room in rooms:
@@ -654,6 +673,7 @@ async def release_room(server_thread: WebSocketServerThread, client_websocket: w
 
                 return {
                     "status": "success",
+                    "command": "RELEASE_ROOM_CALLBACK",
                     "message": "Room released successfully",
                     "roomId": roomId,                    
                 }
@@ -670,6 +690,7 @@ async def content_server_hello(server_thread: WebSocketServerThread, client_webs
     contentId = str(params.get("contentId", 0))
     port = str(params.get("port", 0)) # port == roomId
     status = str(params.get("status", 0))
+    global rooms
 
     try:
         for room in rooms:
@@ -703,6 +724,7 @@ async def content_status_update(server_thread: WebSocketServerThread, client_web
     contentId = str(params.get("contentId", 0))
     port = str(params.get("port", 0)) # port == roomId
     status = str(params.get("status", 0))
+    global rooms
 
     try:
         for room in rooms:
@@ -730,6 +752,7 @@ async def get_user_pairings(server_thread: WebSocketServerThread, client_websock
     logging.info(f"Received get_user_pairings command with params: {params}")
     contentId = str(params.get("contentId", 0))
     port = str(params.get("port", 0)) # port == roomId
+    global rooms
 
     try:
         for room in rooms:
